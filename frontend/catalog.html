@@ -1,0 +1,177 @@
+<!-- catalog.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EwOValeron-Pay — Каталог</title>
+  <meta name="description" content="Каталог игровой валюты, аккаунтов и услуг." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">
+  <!-- базовые стили как на главной -->
+  <link rel="stylesheet" href="static/css/pages/home.css">
+  <!-- стили каталога -->
+  <link rel="stylesheet" href="static/css/pages/catalog.css">
+</head>
+<body>
+
+  <!-- Header (1в1 как на главной) -->
+  <header class="site-header">
+    <div class="container nav" role="navigation" aria-label="Основная навигация">
+      <a class="brand" href="/">
+        <span class="logo" aria-hidden="true"></span>
+        <span>EwOValeron-Pay</span>
+      </a>
+      <nav class="menu">
+        <a href="home.html">Главная</a>
+        <a href="catalog.html" aria-current="page">Каталог товаров</a>
+        <a href="/#account" class="btn">Личный кабинет</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="catalog-main">
+    <!-- Категории -->
+    <section class="cat-head">
+      <div class="container">
+        <h1 class="section-title" style="margin-bottom:16px">Каталог</h1>
+        <div class="cat-row" id="catRow" role="tablist" aria-label="Категории игр">
+          <button class="cat chip active" data-filter="all" role="tab" aria-selected="true">Все</button>
+          <button class="cat chip" data-filter="raid" role="tab" aria-selected="false">RAID: Shadow Legends</button>
+          <button class="cat chip" data-filter="brawl" role="tab" aria-selected="false">Brawl Stars</button>
+          <button class="cat chip" data-filter="clash" role="tab" aria-selected="false">Clash Royale</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Грид карточек -->
+    <section class="catalog-grid">
+      <div class="container grid" id="grid">
+
+        <!-- RAID -->
+        <article class="p-card" data-game="raid">
+          <div class="p-media" aria-hidden="true">
+                <img src="static/images/image.png" alt="RAID 1000 Gems" />
+          </div>
+          <div class="p-body">
+            <h3 class="p-title">RAID — 1 000 Gems</h3>
+            <p class="p-desc">Мгновенное пополнение на ваш аккаунт. Безопасно, быстро.</p>
+            <div class="p-foot">
+              <div class="p-price">790 ₽</div>
+              <button class="btn p-buy">Купить</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="p-card" data-game="raid">
+          <div class="p-media">
+            <img src="static/images/image.png" alt="RAID 1000 Gems" />
+          </div>
+          <div class="p-body">
+            <h3 class="p-title">RAID — Battle Pass</h3>
+            <p class="p-desc">Сезонный пропуск с бонусами. Активируем официально.</p>
+            <div class="p-foot">
+              <div class="p-price">1 590 ₽</div>
+              <button class="btn p-buy">Купить</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Brawl Stars -->
+        <article class="p-card" data-game="brawl">
+          <div class="p-media">
+            <img src="static/images/image.png" alt="RAID 1000 Gems" />
+          </div>
+          <div class="p-body">
+            <h3 class="p-title">Brawl — 170 Gems</h3>
+            <p class="p-desc">Гемы на любые скины и уровни. Чек в приложении.</p>
+            <div class="p-foot">
+              <div class="p-price">349 ₽</div>
+              <button class="btn p-buy">Купить</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="p-card" data-game="brawl">
+          <div class="p-media">
+            <img src="static/images/image.png" alt="RAID 1000 Gems" />
+          </div>
+          <div class="p-body">
+            <h3 class="p-title">Brawl — Месячный Pass</h3>
+            <p class="p-desc">Даёт ускоренный прогресс и награды. Активация за 1–3 минуты.</p>
+            <div class="p-foot">
+              <div class="p-price">790 ₽</div>
+              <button class="btn p-buy">Купить</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Clash Royale -->
+        <article class="p-card" data-game="clash">
+          <div class="p-media">
+            <img src="static/images/image.png" alt="RAID 1000 Gems" />
+          </div>
+          <div class="p-body">
+            <h3 class="p-title">Clash — 1 200 Gems</h3>
+            <p class="p-desc">Для сундуков и бустов апгрейда. Моментальная доставка.</p>
+            <div class="p-foot">
+              <div class="p-price">699 ₽</div>
+              <button class="btn p-buy">Купить</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="p-card" data-game="clash">
+          <div class="p-media">
+            <img src="static/images/image.png" alt="RAID 1000 Gems" />
+          </div>
+          <div class="p-body">
+            <h3 class="p-title">Clash — Gold Pass</h3>
+            <p class="p-desc">Ежемесячные награды и ускорение прокачки. Легально и безопасно.</p>
+            <div class="p-foot">
+              <div class="p-price">1 190 ₽</div>
+              <button class="btn p-buy">Купить</button>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer (1в1 как на главной) -->
+  <footer class="site-footer">
+    <div class="container f-grid">
+      <div>© 2025 EwOValeron-Pay. Все права защищены.</div>
+      <nav class="f-links" aria-label="Юридическая информация">
+        <a href="#" target="_blank" rel="noopener">Политика конфиденциальности</a>
+        <a href="#" target="_blank" rel="noopener">Публичная оферта</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    // Переключение категорий и фильтрация карточек
+    const cats = document.querySelectorAll('.cat');
+    const cards = document.querySelectorAll('.p-card');
+
+    cats.forEach(c => c.addEventListener('click', () => {
+      cats.forEach(x => { x.classList.remove('active'); x.setAttribute('aria-selected','false'); });
+      c.classList.add('active'); c.setAttribute('aria-selected','true');
+
+      const f = c.dataset.filter;
+      cards.forEach(card => {
+        const show = f === 'all' || card.dataset.game === f;
+        card.style.pointerEvents = show ? 'auto' : 'none';
+        card.style.opacity = show ? '1' : '0';
+        card.style.transform = show ? 'translateY(0)' : 'translateY(6px)';
+        card.hidden = !show; // для доступности
+      });
+    }));
+
+    // Кнопка купить (заглушка)
+    document.querySelectorAll('.p-buy').forEach(b=>{
+      b.addEventListener('click', ()=>alert('Оформление покупки — скоро.'));
+    });
+  </script>
+</body>
+</html>

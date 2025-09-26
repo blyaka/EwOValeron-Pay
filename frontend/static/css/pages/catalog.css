@@ -1,0 +1,146 @@
+/* static/css/pages/catalog.css */
+.catalog-main {
+    padding: 40px 0
+}
+
+.cat-head {
+    padding: 32px 0 12px
+}
+
+.cat-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.chip {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, .14);
+    background: rgba(255, 255, 255, .02);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 999px;
+    transition: 180ms ease;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.chip:hover {
+    background: rgba(255, 255, 255, .06)
+}
+
+.chip.active {
+    background: var(--accent);
+    border-color: rgba(255, 255, 255, .25);
+    box-shadow: 0 8px 20px rgba(255, 42, 79, .25)
+}
+
+.catalog-grid {
+    padding: 8px 0 64px
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+/* карточка */
+.p-card {
+    display: grid;
+    grid-template-rows: 180px auto;
+    border: 1px solid rgba(255, 255, 255, .08);
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: 200ms ease;
+    box-shadow: var(--shadow);
+}
+
+.p-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .5)
+}
+
+.p-media {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, 0)),
+        radial-gradient(220px 140px at 70% -20%, rgba(255, 42, 79, .25), transparent 60%),
+        #0f1116;
+    background-repeat: no-repeat;
+    border-bottom: 1px solid rgba(255, 255, 255, .06);
+}
+
+.p-media{
+  position:relative;
+  width:100%;
+  height:180px;
+  overflow:hidden;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  background:#0f1116;
+}
+
+.p-media img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+  transition: transform .4s ease;
+}
+
+.p-card:hover .p-media img{
+  transform:scale(1.05);
+}
+
+
+.p-body {
+    padding: 14px
+}
+
+.p-title {
+    margin: 0 0 6px;
+    font-size: 18px
+}
+
+.p-desc {
+    margin: 0 0 12px;
+    color: var(--muted);
+    font-size: 14px
+}
+
+.p-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px
+}
+
+.p-price {
+    font-weight: 800;
+    font-size: 18px
+}
+
+/* адаптив */
+@media (max-width: 1024px) {
+    .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .p-card {
+        grid-template-rows: 160px auto
+    }
+}
+
+@media (max-width: 560px) {
+    .grid {
+        grid-template-columns: 1fr
+    }
+
+    .p-card {
+        grid-template-rows: 150px auto
+    }
+
+    .cat-row {
+        gap: 8px
+    }
+}
