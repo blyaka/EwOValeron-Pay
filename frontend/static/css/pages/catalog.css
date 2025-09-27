@@ -71,25 +71,25 @@
     border-bottom: 1px solid rgba(255, 255, 255, .06);
 }
 
-.p-media{
-  position:relative;
-  width:100%;
-  height:180px;
-  overflow:hidden;
-  border-bottom:1px solid rgba(255,255,255,.06);
-  background:#0f1116;
+.p-media {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255, 255, 255, .06);
+    background: #0f1116;
 }
 
-.p-media img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  display:block;
-  transition: transform .4s ease;
+.p-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform .4s ease;
 }
 
-.p-card:hover .p-media img{
-  transform:scale(1.05);
+.p-card:hover .p-media img {
+    transform: scale(1.05);
 }
 
 
@@ -121,23 +121,14 @@
 }
 
 /* адаптив */
-@media (max-width: 1024px) {
+@media (max-width: 960px) {
     .grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr))
+        grid-template-columns: 1fr;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
     }
 
     .p-card {
-        grid-template-rows: 160px auto
-    }
-}
-
-@media (max-width: 560px) {
-    .grid {
-        grid-template-columns: 1fr
-    }
-
-    .p-card {
-        grid-template-rows: 150px auto
+        grid-template-rows: 180px auto;
     }
 
     .cat-row {

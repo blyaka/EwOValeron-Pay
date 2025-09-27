@@ -1,36 +1,88 @@
-<!-- catalog.html -->
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EwOValeron-Pay — Каталог</title>
   <meta name="description" content="Каталог игровой валюты, аккаунтов и услуг." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">
-  <!-- базовые стили как на главной -->
   <link rel="stylesheet" href="static/css/pages/home.css">
-  <!-- стили каталога -->
   <link rel="stylesheet" href="static/css/pages/catalog.css">
 </head>
+
 <body>
 
-  <!-- Header (1в1 как на главной) -->
   <header class="site-header">
     <div class="container nav" role="navigation" aria-label="Основная навигация">
-      <a class="brand" href="/">
+      <a class="brand" href="home.html">
         <span class="logo" aria-hidden="true"></span>
         <span>EwOValeron-Pay</span>
       </a>
+
+      <button class="burger" id="burgerBtn" aria-label="Открыть меню" aria-expanded="false" aria-controls="mobileMenu">
+        <span class="bar"></span>
+      </button>
+
       <nav class="menu">
-        <a href="home.html">Главная</a>
+        <a href="home.html" aria-current="page">Главная</a>
         <a href="catalog.html" aria-current="page">Каталог товаров</a>
-        <a href="/#account" class="btn">Личный кабинет</a>
+        <a href="#account" class="btn">Личный кабинет</a>
       </nav>
+
+      <div class="mobile-menu" id="mobileMenu" hidden>
+        <a href="home.html" class="mm-link">Главная</a>
+        <a href="catalog.html" class="mm-link">Каталог товаров</a>
+        <a href="#account" class="mm-link btn">Личный кабинет</a>
+      </div>
     </div>
   </header>
 
+  <script>
+    (function () {
+      const btn = document.getElementById('burgerBtn');
+      const panel = document.getElementById('mobileMenu');
+      if (!btn || !panel) return;
+
+      const lock = on => {
+        document.documentElement.style.overflow = on ? 'hidden' : '';
+        document.body.style.overflow = on ? 'hidden' : '';
+      };
+
+      const closeOnEscape = e => { if (e.key === 'Escape') btn.click(); };
+
+      btn.addEventListener('click', () => {
+        const open = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', String(!open));
+        panel.classList.toggle('is-open', !open);
+        panel.toggleAttribute('hidden', open);
+        lock(!open);
+        if (!open) document.addEventListener('keydown', closeOnEscape);
+        else document.removeEventListener('keydown', closeOnEscape);
+      });
+
+      panel.addEventListener('click', e => {
+        const a = e.target.closest('a');
+        if (a) {
+          btn.setAttribute('aria-expanded', 'false');
+          panel.classList.remove('is-open');
+          panel.setAttribute('hidden', '');
+          lock(false);
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 960) {
+          btn.setAttribute('aria-expanded', 'false');
+          panel.classList.remove('is-open');
+          panel.setAttribute('hidden', '');
+          lock(false);
+        }
+      });
+    })();
+  </script>
+
   <main class="catalog-main">
-    <!-- Категории -->
     <section class="cat-head">
       <div class="container">
         <h1 class="section-title" style="margin-bottom:16px">Каталог</h1>
@@ -43,14 +95,12 @@
       </div>
     </section>
 
-    <!-- Грид карточек -->
     <section class="catalog-grid">
       <div class="container grid" id="grid">
 
-        <!-- RAID -->
         <article class="p-card" data-game="raid">
           <div class="p-media" aria-hidden="true">
-                <img src="static/images/image.png" alt="RAID 1000 Gems" />
+            <img src="static/images/image.png" alt="RAID 1000 Gems" />
           </div>
           <div class="p-body">
             <h3 class="p-title">RAID — 1 000 Gems</h3>
@@ -76,7 +126,6 @@
           </div>
         </article>
 
-        <!-- Brawl Stars -->
         <article class="p-card" data-game="brawl">
           <div class="p-media">
             <img src="static/images/image.png" alt="RAID 1000 Gems" />
@@ -105,7 +154,6 @@
           </div>
         </article>
 
-        <!-- Clash Royale -->
         <article class="p-card" data-game="clash">
           <div class="p-media">
             <img src="static/images/image.png" alt="RAID 1000 Gems" />
@@ -138,7 +186,6 @@
     </section>
   </main>
 
-  <!-- Footer (1в1 как на главной) -->
   <footer class="site-footer">
     <div class="container f-grid">
       <div>© 2025 EwOValeron-Pay. Все права защищены.</div>
@@ -155,8 +202,8 @@
     const cards = document.querySelectorAll('.p-card');
 
     cats.forEach(c => c.addEventListener('click', () => {
-      cats.forEach(x => { x.classList.remove('active'); x.setAttribute('aria-selected','false'); });
-      c.classList.add('active'); c.setAttribute('aria-selected','true');
+      cats.forEach(x => { x.classList.remove('active'); x.setAttribute('aria-selected', 'false'); });
+      c.classList.add('active'); c.setAttribute('aria-selected', 'true');
 
       const f = c.dataset.filter;
       cards.forEach(card => {
@@ -164,14 +211,15 @@
         card.style.pointerEvents = show ? 'auto' : 'none';
         card.style.opacity = show ? '1' : '0';
         card.style.transform = show ? 'translateY(0)' : 'translateY(6px)';
-        card.hidden = !show; // для доступности
+        card.hidden = !show;
       });
     }));
 
     // Кнопка купить (заглушка)
-    document.querySelectorAll('.p-buy').forEach(b=>{
-      b.addEventListener('click', ()=>alert('Оформление покупки — скоро.'));
+    document.querySelectorAll('.p-buy').forEach(b => {
+      b.addEventListener('click', () => alert('Оформление покупки — скоро.'));
     });
   </script>
 </body>
+
 </html>

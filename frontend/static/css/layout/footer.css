@@ -1,0 +1,29 @@
+.site-footer {
+    padding: 28px 0;
+    border-top: 1px solid rgba(255, 255, 255, .08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, .02), rgba(255, 255, 255, .00));
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.f-grid {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap
+}
+
+.f-links {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap
+}
+
+.f-links a {
+    color: var(--muted)
+}
+
+.f-links a:hover {
+    color: #fff
+}
