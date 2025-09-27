@@ -1,0 +1,6 @@
+django
+django-allauth
+psycopg2-binary
+gunicorn
+pillow
+django-redis
