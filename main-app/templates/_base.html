@@ -1,0 +1,118 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    {% block title %}
+    <title>EwOValeron-Pay — Виртуальная валюта, аккаунты, услуги</title>
+    {% endblock title %}
+
+    <meta name="description"
+        content="Магазин игровой валюты, аккаунтов и услуг. Быстрая доставка, безопасные сделки, поддержка 24/7." />
+
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">
+
+    <link rel="stylesheet" href="{% static 'css/pages/base.css' %}">
+
+    {% block styles %}
+
+    {% endblock styles %}
+</head>
+
+<body>
+
+    <header class="site-header">
+        <div class="container nav" role="navigation" aria-label="Основная навигация">
+            <a class="brand" href="home.html">
+                <span class="logo" aria-hidden="true"></span>
+                <span>EwOValeron-Pay</span>
+            </a>
+
+            <button class="burger" id="burgerBtn" aria-label="Открыть меню" aria-expanded="false"
+                aria-controls="mobileMenu">
+                <span class="bar"></span>
+            </button>
+
+            <nav class="menu">
+                <a href="home.html" aria-current="page">Главная</a>
+                <a href="catalog.html" aria-current="page">Каталог товаров</a>
+                <a href="#account" class="btn">Личный кабинет</a>
+            </nav>
+
+            <div class="mobile-menu" id="mobileMenu" hidden>
+                <a href="home.html" class="mm-link">Главная</a>
+                <a href="catalog.html" class="mm-link">Каталог товаров</a>
+                <a href="#account" class="mm-link btn">Личный кабинет</a>
+            </div>
+        </div>
+    </header>
+
+    <script>
+        (function () {
+            const btn = document.getElementById('burgerBtn');
+            const panel = document.getElementById('mobileMenu');
+            if (!btn || !panel) return;
+
+            const lock = on => {
+                document.documentElement.style.overflow = on ? 'hidden' : '';
+                document.body.style.overflow = on ? 'hidden' : '';
+            };
+
+            const closeOnEscape = e => { if (e.key === 'Escape') btn.click(); };
+
+            btn.addEventListener('click', () => {
+                const open = btn.getAttribute('aria-expanded') === 'true';
+                btn.setAttribute('aria-expanded', String(!open));
+                panel.classList.toggle('is-open', !open);
+                panel.toggleAttribute('hidden', open);
+                lock(!open);
+                if (!open) document.addEventListener('keydown', closeOnEscape);
+                else document.removeEventListener('keydown', closeOnEscape);
+            });
+
+            panel.addEventListener('click', e => {
+                const a = e.target.closest('a');
+                if (a) {
+                    btn.setAttribute('aria-expanded', 'false');
+                    panel.classList.remove('is-open');
+                    panel.setAttribute('hidden', '');
+                    lock(false);
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 960) {
+                    btn.setAttribute('aria-expanded', 'false');
+                    panel.classList.remove('is-open');
+                    panel.setAttribute('hidden', '');
+                    lock(false);
+                }
+            });
+        })();
+    </script>
+
+
+    {% block content %}
+
+    {% endblock content %}
+
+
+
+    <footer class="site-footer">
+        <div class="container f-grid">
+            <div>© 2025 EwOValeron-Pay. Все права защищены.</div>
+            <nav class="f-links" aria-label="Юридическая информация">
+                <a href="#" target="_blank" rel="noopener">Политика конфиденциальности</a>
+                <a href="#" target="_blank" rel="noopener">Публичная оферта</a>
+            </nav>
+        </div>
+    </footer>
+
+
+</body>
+
+</html>

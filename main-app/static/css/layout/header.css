@@ -1,0 +1,218 @@
+/* Header */
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    backdrop-filter: saturate(140%) blur(8px);
+    background: linear-gradient(180deg, rgba(10, 10, 14, .72), rgba(10, 10, 14, .45));
+    border-bottom: 1px solid rgba(255, 255, 255, .06);
+}
+
+.nav {
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 800;
+    letter-spacing: .4px;
+}
+
+.logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background:
+        conic-gradient(from 210deg, var(--accent), var(--accent-2) 40%, transparent 40%) border-box,
+        linear-gradient(var(--panel), var(--panel)) padding-box;
+    border: 1px solid rgba(255, 255, 255, .12);
+    box-shadow: inset 0 0 20px rgba(255, 42, 79, .15), 0 8px 24px rgba(0, 0, 0, .35);
+}
+
+.brand span {
+    font-size: 18px
+}
+
+.menu {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap
+}
+
+.menu a {
+    padding: 10px 14px;
+    border-radius: 10px;
+    color: var(--muted);
+    transition: 200ms ease;
+    border: 1px solid transparent;
+}
+
+.menu a[aria-current="page"] {
+    color: var(--text);
+    border-color: rgba(255, 255, 255, .12);
+    background: rgba(255, 255, 255, .03)
+}
+
+.menu a:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, .06)
+}
+
+
+/* === Burger === */
+.burger {
+    display: none;
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border: 1px solid rgba(255, 255, 255, .12);
+    background: rgba(255, 255, 255, .02);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 180ms ease;
+}
+
+.burger:hover {
+    background: rgba(255, 255, 255, .06)
+}
+
+.burger .bar,
+.burger::before,
+.burger::after {
+    content: "";
+    position: absolute;
+    left: 11px;
+    right: 11px;
+    height: 2px;
+    background: #fff;
+    border-radius: 2px;
+    top: 50%;
+    transform-origin: 50% 50%;
+    transition: transform .2s ease, opacity .2s ease;
+}
+
+.burger .bar {
+    transform: translateY(-50%);
+}
+
+.burger::before {
+    transform: translateY(calc(-50% - 6px));
+}
+
+.burger::after {
+    transform: translateY(calc(-50% + 6px));
+}
+
+.burger[aria-expanded="true"] .bar {
+    opacity: 0;
+}
+
+.burger[aria-expanded="true"]::before {
+    transform: translateY(-50%) rotate(45deg);
+}
+
+.burger[aria-expanded="true"]::after {
+    transform: translateY(-50%) rotate(-45deg);
+}
+
+/* === Mobile menu panel === */
+.mobile-menu {
+    display: none;
+}
+
+.mobile-menu[hidden] {
+    display: none !important;
+}
+
+.mobile-menu.is-open {
+    display: grid;
+}
+
+.mobile-menu {
+    position: absolute;
+    top: 72px;
+    right: 20px;
+    /* под шапкой */
+    width: min(88vw, 320px);
+    border: 1px solid rgba(255, 255, 255, .12);
+    background: var(--panel);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    animation: mm-in .18s ease;
+}
+
+@keyframes mm-in {
+    from {
+        opacity: 0;
+        transform: translateY(-6px)
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0)
+    }
+}
+
+.mm-link {
+    display: block;
+    padding: 12px 14px;
+    border-radius: 12px;
+    color: #fff;
+    background: rgba(255, 255, 255, .02);
+    border: 1px solid rgba(255, 255, 255, .08);
+}
+
+.mm-link:hover {
+    background: rgba(255, 255, 255, .06)
+}
+
+.mm-link.btn {
+    text-align: center;
+}
+
+
+.btn {
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--accent);
+    border: 1px solid rgba(255, 255, 255, .1);
+    color: #fff;
+    font-weight: 600;
+    transition: 200ms ease;
+    box-shadow: 0 8px 20px rgba(255, 42, 79, .25);
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(255, 42, 79, .35)
+}
+
+.btn:active {
+    transform: translateY(0)
+}
+
+
+@media (max-width: 960px) {
+    .menu {
+        display: none;
+        gap: 4px
+    }
+
+    .nav {
+        height: 64px
+    }
+
+    .burger {
+        display: inline-flex
+    }
+}
