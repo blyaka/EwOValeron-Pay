@@ -38,14 +38,14 @@
             </button>
 
             <nav class="menu">
-                <a href="home.html" aria-current="page">Главная</a>
-                <a href="catalog.html" aria-current="page">Каталог товаров</a>
+                <a href="{% url 'home' %}" aria-current="page">Главная</a>
+                <a href="{% url 'catalog' %}" aria-current="page">Каталог товаров</a>
                 <a href="#account" class="btn">Личный кабинет</a>
             </nav>
 
             <div class="mobile-menu" id="mobileMenu" hidden>
-                <a href="home.html" class="mm-link">Главная</a>
-                <a href="catalog.html" class="mm-link">Каталог товаров</a>
+                <a href="{% url 'home' %}" class="mm-link">Главная</a>
+                <a href="{% url 'catalog' %}" class="mm-link">Каталог товаров</a>
                 <a href="#account" class="mm-link btn">Личный кабинет</a>
             </div>
         </div>
