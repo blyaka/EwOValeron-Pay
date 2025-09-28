@@ -12,7 +12,6 @@ img {
 .container {
     max-width: var(--max);
     margin: 0 auto;
-    padding: 0 20px
 }
 
 /* Hero */
