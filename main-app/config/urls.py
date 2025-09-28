@@ -21,3 +21,10 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+
+
+from django.http import HttpResponse
+from django.urls import path
+def health(_): return HttpResponse("ok")
+urlpatterns += [path("health/", health)]
