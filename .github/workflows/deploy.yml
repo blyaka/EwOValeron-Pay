@@ -40,6 +40,6 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd /var/www/evpayservice
-            docker compose pull ewovaleron-pay-web
+            docker compose pull web
             docker compose up -d web
             docker image prune -f
