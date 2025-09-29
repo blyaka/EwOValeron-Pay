@@ -41,3 +41,10 @@ img {
     max-width: var(--max);
     margin: 0 auto;
 }
+
+
+@media (max-width: 960px) {
+    .container {
+        padding: 0 20px;
+    }
+}
