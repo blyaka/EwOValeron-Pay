@@ -336,7 +336,7 @@ section .section-title {
 }
 
 /* Responsive */
-@media (max-width: 960px) {
+@media (max-width: 1240px) {
     .hero-grid {
         grid-template-columns: 1fr
     }
