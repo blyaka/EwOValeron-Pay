@@ -19,7 +19,7 @@ class Product(models.Model):
         Category,
         verbose_name='Категория',
         related_name='products',
-        on_delete=models.PROTECT,
+        on_delete=models.PROTECT
     )
     name = models.CharField('Название', max_length=100, db_index=True)
     description = models.CharField('Краткое описание', max_length=255, blank=True)

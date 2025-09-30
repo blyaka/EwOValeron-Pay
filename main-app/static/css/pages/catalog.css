@@ -29,7 +29,7 @@
     background: rgba(255, 255, 255, .06)
 }
 
-.chip.active {
+.chip.is-active {
     background: var(--accent);
     border-color: rgba(255, 255, 255, .25);
     box-shadow: 0 8px 20px rgba(255, 42, 79, .25)

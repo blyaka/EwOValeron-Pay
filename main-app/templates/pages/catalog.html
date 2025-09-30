@@ -16,11 +16,19 @@
         <input type="text" id="searchInput" class="search-input" placeholder="Поиск по товарам...">
       </div>
 
-      <div class="cat-row" id="catRow" role="tablist" aria-label="Категории игр">
-        <button class="cat chip active" data-filter="all" role="tab" aria-selected="true">Все</button>
-        <button class="cat chip" data-filter="raid" role="tab" aria-selected="false">RAID: Shadow Legends</button>
-        <button class="cat chip" data-filter="brawl" role="tab" aria-selected="false">Brawl Stars</button>
-        <button class="cat chip" data-filter="clash" role="tab" aria-selected="false">Clash Royale</button>
+      <div class="cat-row" id="catFilters" role="tablist" aria-label="Категории">
+        <button class="cat chip is-active" data-cat="all" role="tab" aria-selected="true">Все</button>
+        {% if categories %}
+          {% for c in categories %}
+            <button class="cat chip" data-cat="{{ c.id }}" role="tab" aria-selected="false">{{ c.name }}</button>
+          {% endfor %}
+        {% else %}
+          <button class="cat chip" data-cat="1" role="tab" aria-selected="false">Рубины (Gems)</button>
+          <button class="cat chip" data-cat="2" role="tab" aria-selected="false">Осколки (Shards)</button>
+          <button class="cat chip" data-cat="3" role="tab" aria-selected="false">Наборы/ресурсы</button>
+          <button class="cat chip" data-cat="4" role="tab" aria-selected="false">Пропуска</button>
+          <button class="cat chip" data-cat="5" role="tab" aria-selected="false">Услуги</button>
+        {% endif %}
       </div>
     </div>
   </section>
@@ -29,7 +37,7 @@
     <div class="container grid" id="grid">
       {% for product in products %}
 
-      <article class="p-card">
+      <article class="p-card" data-cat="{{ product.category_id }}">
         <div class="p-media" aria-hidden="true">
           <img src="{{product.poster.url}}" alt="{{product.name}}" />
         </div>
@@ -52,32 +60,57 @@
   </section>
 </main>
 
+
 <script>
   const searchInput = document.getElementById('searchInput');
-  const cards = document.querySelectorAll('.p-card');
+  const cards = Array.from(document.querySelectorAll('.p-card'));
   const noResults = document.getElementById('noResults');
+  const catFilters = document.getElementById('catFilters');
+  let activeCat = 'all';
 
-  searchInput.addEventListener('input', () => {
-    const query = searchInput.value.toLowerCase();
-    let visibleCount = 0;
+  function applyFilters() {
+    const q = (searchInput.value || '').toLowerCase();
+    let visible = 0;
 
     cards.forEach(card => {
       const title = card.querySelector('.p-title').textContent.toLowerCase();
-      const desc = card.querySelector('.p-desc').textContent.toLowerCase();
+      const desc  = card.querySelector('.p-desc').textContent.toLowerCase();
+      const catId = card.getAttribute('data-cat');
 
-      if (title.includes(query) || desc.includes(query)) {
-        card.style.display = '';
-        visibleCount++;
-      } else {
-        card.style.display = 'none';
-      }
+      const matchesText = !q || title.includes(q) || desc.includes(q);
+      const matchesCat  = activeCat === 'all' || catId === String(activeCat);
+
+      const show = matchesText && matchesCat;
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
     });
 
-    noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+    noResults.style.display = visible === 0 ? 'block' : 'none';
+  }
+
+  searchInput.addEventListener('input', applyFilters);
+
+  catFilters.addEventListener('click', (e) => {
+    const btn = e.target.closest('.chip[data-cat]');
+    if (!btn) return;
+
+    catFilters.querySelectorAll('.chip').forEach(b => {
+      b.classList.remove('is-active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    btn.classList.add('is-active');
+    btn.setAttribute('aria-selected', 'true');
+
+    activeCat = btn.dataset.cat;
+    applyFilters();
   });
+
+  applyFilters();
 
   document.querySelectorAll('.p-buy').forEach(b => {
     b.addEventListener('click', () => alert('Оформление покупки — скоро.'));
   });
 </script>
+
+
 {% endblock content %}
