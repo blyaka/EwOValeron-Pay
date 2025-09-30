@@ -1,4 +1,3 @@
-# models.py
 from django.db import models
 
 
@@ -23,7 +22,9 @@ class Product(models.Model):
     )
     name = models.CharField('Название', max_length=100, db_index=True)
     description = models.CharField('Краткое описание', max_length=255, blank=True)
-    poster = models.ImageField('Постер', upload_to='catalog/posters')
+    poster = models.ImageField('Постер', upload_to='catalog/posters', blank=True)
+    image_url = models.URLField('Внешний постер', blank=True)
+
     price = models.PositiveIntegerField('Цена')
     order = models.PositiveIntegerField('Порядок', default=0, db_index=True)
 

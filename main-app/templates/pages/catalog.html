@@ -39,7 +39,13 @@
 
       <article class="p-card" data-cat="{{ product.category_id }}">
         <div class="p-media" aria-hidden="true">
-          <img src="{{product.poster.url}}" alt="{{product.name}}" />
+            {% if product.poster %}
+              <img src="{{ product.poster.url }}" alt="{{ product.name }}">
+            {% elif product.image_url %}
+              <img src="{{ product.image_url }}" alt="{{ product.name }}">
+            {% else %}
+              <img src="{% static 'images/no-image.png' %}" alt="Нет изображения">
+            {% endif %}
         </div>
         <div class="p-body">
           <h3 class="p-title">{{product.name}}</h3>

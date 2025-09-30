@@ -8,125 +8,149 @@
   {"model":"catalog.Product","pk":1,"fields":{
     "category":1,"name":"Рубины × 175",
     "description":"Быстрое начисление на аккаунт.",
-    "poster":"catalog/posters/placeholder.png","price":450,"order":1
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/1/10/Gems.png",
+    "price":450,"order":1
   }},
   {"model":"catalog.Product","pk":2,"fields":{
     "category":1,"name":"Рубины × 350",
     "description":"Удобный объём для ежедневной игры.",
-    "poster":"catalog/posters/placeholder.png","price":900,"order":2
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/1/10/Gems.png",
+    "price":900,"order":2
   }},
   {"model":"catalog.Product","pk":3,"fields":{
     "category":1,"name":"Рубины × 730",
     "description":"Под ивенты и фарм.",
-    "poster":"catalog/posters/placeholder.png","price":1800,"order":3
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/1/10/Gems.png",
+    "price":1800,"order":3
   }},
   {"model":"catalog.Product","pk":4,"fields":{
     "category":1,"name":"Рубины × 1 150",
     "description":"Комфортный объём на неделю.",
-    "poster":"catalog/posters/placeholder.png","price":2700,"order":4
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/1/10/Gems.png",
+    "price":2700,"order":4
   }},
   {"model":"catalog.Product","pk":5,"fields":{
     "category":1,"name":"Рубины × 2 025",
     "description":"Оптимально под события.",
-    "poster":"catalog/posters/placeholder.png","price":4500,"order":5
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/1/10/Gems.png",
+    "price":4500,"order":5
   }},
   {"model":"catalog.Product","pk":6,"fields":{
     "category":1,"name":"Рубины × 4 200",
     "description":"Максимальный пакет.",
-    "poster":"catalog/posters/placeholder.png","price":8900,"order":6
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/1/10/Gems.png",
+    "price":8900,"order":6
   }},
 
   {"model":"catalog.Product","pk":7,"fields":{
     "category":2,"name":"Ancient Shard × 1",
     "description":"Древний осколок для призыва.",
-    "poster":"catalog/posters/placeholder.png","price":900,"order":7
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/2/2e/Ancient_Shard.png",
+    "price":900,"order":7
   }},
   {"model":"catalog.Product","pk":8,"fields":{
     "category":2,"name":"Ancient Shards × 3",
     "description":"Набор для ивентов.",
-    "poster":"catalog/posters/placeholder.png","price":2700,"order":8
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/2/2e/Ancient_Shard.png",
+    "price":2700,"order":8
   }},
   {"model":"catalog.Product","pk":9,"fields":{
     "category":2,"name":"Ancient Shards × 6",
     "description":"Удобно под суммон-ивенты.",
-    "poster":"catalog/posters/placeholder.png","price":4500,"order":9
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/2/2e/Ancient_Shard.png",
+    "price":4500,"order":9
   }},
   {"model":"catalog.Product","pk":10,"fields":{
     "category":2,"name":"Ancient Shards × 15",
     "description":"Большой набор древних.",
-    "poster":"catalog/posters/placeholder.png","price":9000,"order":10
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/2/2e/Ancient_Shard.png",
+    "price":9000,"order":10
   }},
   {"model":"catalog.Product","pk":11,"fields":{
     "category":2,"name":"Void Shard × 1",
     "description":"Редкий войд-осколок.",
-    "poster":"catalog/posters/placeholder.png","price":2700,"order":11
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/f/f5/Void_Shard.png",
+    "price":2700,"order":11
   }},
   {"model":"catalog.Product","pk":12,"fields":{
     "category":2,"name":"Void Shards × 2",
     "description":"Комплект войд-осколков.",
-    "poster":"catalog/posters/placeholder.png","price":4500,"order":12
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/f/f5/Void_Shard.png",
+    "price":4500,"order":12
   }},
   {"model":"catalog.Product","pk":13,"fields":{
     "category":2,"name":"Void Shards × 3",
     "description":"Повышайте шанс на эпик/легенду.",
-    "poster":"catalog/posters/placeholder.png","price":6300,"order":13
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/f/f5/Void_Shard.png",
+    "price":6300,"order":13
   }},
   {"model":"catalog.Product","pk":14,"fields":{
     "category":2,"name":"Void Shards × 5",
     "description":"Под X2/гарантированную акцию.",
-    "poster":"catalog/posters/placeholder.png","price":9000,"order":14
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/f/f5/Void_Shard.png",
+    "price":9000,"order":14
   }},
   {"model":"catalog.Product","pk":15,"fields":{
     "category":2,"name":"Sacred Shard × 1",
     "description":"Сакральный осколок (ориентир).",
-    "poster":"catalog/posters/placeholder.png","price":2200,"order":15
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/9/9a/Sacred_Shard.png",
+    "price":2200,"order":15
   }},
 
   {"model":"catalog.Product","pk":16,"fields":{
     "category":3,"name":"Ежедневный набор (Daily Pack)",
     "description":"Энергия, серебро, бусты (переменная цена).",
-    "poster":"catalog/posters/placeholder.png","price":499,"order":16
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/5/53/Energy_Refill.png",
+    "price":499,"order":16
   }},
   {"model":"catalog.Product","pk":17,"fields":{
     "category":3,"name":"Недельный набор (Weekly Pack)",
     "description":"Расширенный комплект на 7 дней.",
-    "poster":"catalog/posters/placeholder.png","price":1499,"order":17
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/5/53/Energy_Refill.png",
+    "price":1499,"order":17
   }},
   {"model":"catalog.Product","pk":18,"fields":{
     "category":3,"name":"Месячный набор рубинов (2140)",
     "description":"Ежедневная выдача рубинов в течение месяца.",
-    "poster":"catalog/posters/placeholder.png","price":1200,"order":18
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/1/10/Gems.png",
+    "price":1200,"order":18
   }},
   {"model":"catalog.Product","pk":19,"fields":{
     "category":3,"name":"XP Boost + Energy Refills",
     "description":"Ускоритель опыта + рефилы энергии.",
-    "poster":"catalog/posters/placeholder.png","price":999,"order":19
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/5/53/Energy_Refill.png",
+    "price":999,"order":19
   }},
   {"model":"catalog.Product","pk":20,"fields":{
     "category":3,"name":"Пакет ресурсов (серебро/энергия/бусты)",
     "description":"Универсальный комплект.",
-    "poster":"catalog/posters/placeholder.png","price":1299,"order":20
+    "poster":"","image_url":"https://static.wikia.nocookie.net/raidshadowlegends_gamepedia_en/images/4/44/Silver.png",
+    "price":1299,"order":20
   }},
 
   {"model":"catalog.Product","pk":21,"fields":{
     "category":4,"name":"Battle Pass / Raid Pass",
     "description":"Сезонный пропуск с наградами и задачами.",
-    "poster":"catalog/posters/placeholder.png","price":1990,"order":21
+    "poster":"","image_url":"https://raidshadowlegends.com/wp-content/uploads/2023/08/RAID-logo-social.jpg",
+    "price":1990,"order":21
   }},
 
   {"model":"catalog.Product","pk":22,"fields":{
     "category":5,"name":"Прохождение кампании (этап/глава)",
     "description":"Помощь с прохождением по согласованию.",
-    "poster":"catalog/posters/placeholder.png","price":799,"order":22
+    "poster":"","image_url":"https://raidshadowlegends.com/wp-content/uploads/2023/08/RAID-logo-social.jpg",
+    "price":799,"order":22
   }},
   {"model":"catalog.Product","pk":23,"fields":{
     "category":5,"name":"Клановый босс (ежедневные ключи)",
     "description":"Подготовка и тактика + сопровождение.",
-    "poster":"catalog/posters/placeholder.png","price":999,"order":23
+    "poster":"","image_url":"https://raidshadowlegends.com/wp-content/uploads/2023/08/RAID-logo-social.jpg",
+    "price":999,"order":23
   }},
   {"model":"catalog.Product","pk":24,"fields":{
     "category":5,"name":"Doom Tower / Подземелья",
     "description":"План + сопровождение прохождения.",
-    "poster":"catalog/posters/placeholder.png","price":1299,"order":24
+    "poster":"","image_url":"https://raidshadowlegends.com/wp-content/uploads/2023/08/RAID-logo-social.jpg",
+    "price":1299,"order":24
   }}
 ]
