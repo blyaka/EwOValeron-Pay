@@ -5,6 +5,8 @@ from django.urls import path, include
 from django.contrib.sitemaps.views import sitemap
 from .sitemaps import StaticViewSitemap
 from django.views.generic import TemplateView
+from django.shortcuts import render
+
 
 sitemaps = {
     "static": StaticViewSitemap,
@@ -15,6 +17,7 @@ handler404 = 'pages.views.Custom404'
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('pages.urls')),
+    path('404/', lambda request: render(request, '404.html'), name='404'),
 ]
 
 
