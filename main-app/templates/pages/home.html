@@ -227,10 +227,10 @@
             </div>
             <form class="card" onsubmit="event.preventDefault(); sendMsg(this);">
                 <h3 style="margin-top:0">Быстрая заявка</h3>
-                <label class="field">
+                {% comment %} <label class="field">
                     <span>Ваш ник/имя</span>
                     <input class="input" name="name" required placeholder="Например, @NeonWolf" />
-                </label>
+                </label> {% endcomment %}
                 <label class="field">
                     <span>Контакт</span>
                     <input class="input" name="contact" required placeholder="Telegram или email" />
