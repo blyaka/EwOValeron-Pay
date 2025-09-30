@@ -10,6 +10,7 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    margin: 20px 0px;
 }
 
 .chip {
@@ -121,28 +122,31 @@
 
 
 
-/* новое */
+
 .search-input {
-  padding: 8px 14px;
-  border: 1px solid #ccc;
-  border-radius: 20px;
-  font-size: 14px;
-  outline: none;
-  width: 100%;
-  max-width: 320px;
+    padding: 8px 14px;
+    color: var(--text);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 10px;
+    font-size: var(--font-main);
+    background: rgba(255, 255, 255, .03);
+    outline: none;
+    width: 100%;
+    max-width: 320px;
 }
+
 .search-input:focus {
-  border-color: #666;
+    border-color: #666;
 }
 
 
 .no-results {
-  text-align: center;
-  font-size: 18px;
-  color: #777;
-  padding: 40px 0;
+    text-align: center;
+    font-size: 18px;
+    color: #777;
+    padding: 40px 0;
 }
-/* конец нового */
+
 
 
 
