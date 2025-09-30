@@ -18,8 +18,8 @@
                 <p class="h-sub">Быстрая покупка внутриигровых пакетов Raid: Shadow Legends. Поддержка временного входа
                     в аккаунт с согласия клиента, прозрачные статусы, безопасные операции и поддержка 24/7.</p>
                 <div class="h-cta">
-                    <a href="#" class="btn">Купить сейчас</a>
-                    <a href="#about" class="btn-ghost">Узнать больше</a>
+                    <a href="{% url 'catalog' %}" class="btn">Выбрать услугу</a>
+                    <a href="#about" class="btn-ghost">Узнать о нас больше</a>
                 </div>
                 <div class="kpi">
                     <div><strong>3000+</strong><small class="muted">сделок в месяц</small></div>
@@ -30,9 +30,9 @@
             <div class="hero-card">
                 <div class="pill">Популярно сегодня</div>
                 <div class="hero-features">
-                    <div class="feat">💎 <b>Рубины (Gems)</b> для Raid: Shadow Legends</div>
-                    <div class="feat">🪙 <b>Осколки (Shards)</b> для ивентов</div>
-                    <div class="feat">🧰 <b>Battle Pass / Raid Pass</b> с наградами и задачами</div>
+                    <a href="{% url 'catalog' %}" class="feat">💎 <b>Рубины (Gems)</b> для Raid: Shadow Legends</a>
+                    <a href="{% url 'catalog' %}" class="feat">🪙 <b>Осколки (Shards)</b> для ивентов</a>
+                    <a href="{% url 'catalog' %}" class="feat">🧰 <b>Battle Pass / Raid Pass</b> с наградами и задачами</a>
                 </div>
                 <!-- <div class="sep"></div>
                 <p class="muted">Все операции проходят через защищённые каналы. Проверка продавцов и ручной антифрод
