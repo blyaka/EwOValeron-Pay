@@ -119,6 +119,34 @@
     font-size: 18px
 }
 
+
+
+/* новое */
+.search-input {
+  padding: 8px 14px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  font-size: 14px;
+  outline: none;
+  width: 100%;
+  max-width: 320px;
+}
+.search-input:focus {
+  border-color: #666;
+}
+
+
+.no-results {
+  text-align: center;
+  font-size: 18px;
+  color: #777;
+  padding: 40px 0;
+}
+/* конец нового */
+
+
+
+
 /* адаптив */
 @media (max-width: 1240px) {
     .grid {

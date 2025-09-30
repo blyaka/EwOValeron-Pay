@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from catalog.models import Product
 
 
 def HomePage(request):
@@ -6,7 +7,8 @@ def HomePage(request):
 
 
 def CatalogPage(request):
-    return render(request, 'pages/catalog.html')
+    products = Product.objects.all()
+    return render(request, 'pages/catalog.html', {'products': products})
 
 
 def Custom404(request, exception):

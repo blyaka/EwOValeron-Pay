@@ -12,126 +12,63 @@
   <section class="cat-head">
     <div class="container">
       <h1 class="section-title" style="margin-bottom:16px">Каталог</h1>
-      <div class="cat-row" id="catRow" role="tablist" aria-label="Категории игр">
-        <button class="cat chip active" data-filter="all" role="tab" aria-selected="true">Все</button>
-        <button class="cat chip" data-filter="raid" role="tab" aria-selected="false">RAID: Shadow Legends</button>
-        <button class="cat chip" data-filter="brawl" role="tab" aria-selected="false">Brawl Stars</button>
-        <button class="cat chip" data-filter="clash" role="tab" aria-selected="false">Clash Royale</button>
+      <div class="cat-row" id="catRow">
+        <input type="text" id="searchInput" class="search-input" placeholder="Поиск по товарам...">
       </div>
     </div>
   </section>
 
   <section class="catalog-grid">
     <div class="container grid" id="grid">
+      {% for product in products %}
 
-      <article class="p-card" data-game="raid">
+      <article class="p-card">
         <div class="p-media" aria-hidden="true">
-          <img src="{% static 'images/image.png'%}" alt="RAID 1000 Gems" />
+          <img src="{{product.poster.url}}" alt="{{product.name}}" />
         </div>
         <div class="p-body">
-          <h3 class="p-title">RAID — 1 000 Gems</h3>
-          <p class="p-desc">Мгновенное пополнение на ваш аккаунт. Безопасно, быстро.</p>
+          <h3 class="p-title">{{product.name}}</h3>
+          <p class="p-desc">{{product.description}}</p>
           <div class="p-foot">
-            <div class="p-price">790 ₽</div>
+            <div class="p-price">{{product.price}}</div>
             <button class="btn p-buy">Купить</button>
           </div>
         </div>
       </article>
 
-      <article class="p-card" data-game="raid">
-        <div class="p-media">
-          <img src="{% static 'images/image.png'%}" alt="RAID 1000 Gems" />
-        </div>
-        <div class="p-body">
-          <h3 class="p-title">RAID — Battle Pass</h3>
-          <p class="p-desc">Сезонный пропуск с бонусами. Активируем официально.</p>
-          <div class="p-foot">
-            <div class="p-price">1 590 ₽</div>
-            <button class="btn p-buy">Купить</button>
-          </div>
-        </div>
-      </article>
+      {% endfor %}
 
-      <article class="p-card" data-game="brawl">
-        <div class="p-media">
-          <img src="{% static 'images/image.png'%}" alt="RAID 1000 Gems" />
-        </div>
-        <div class="p-body">
-          <h3 class="p-title">Brawl — 170 Gems</h3>
-          <p class="p-desc">Гемы на любые скины и уровни. Чек в приложении.</p>
-          <div class="p-foot">
-            <div class="p-price">349 ₽</div>
-            <button class="btn p-buy">Купить</button>
-          </div>
-        </div>
-      </article>
-
-      <article class="p-card" data-game="brawl">
-        <div class="p-media">
-          <img src="{% static 'images/image.png'%}" alt="RAID 1000 Gems" />
-        </div>
-        <div class="p-body">
-          <h3 class="p-title">Brawl — Месячный Pass</h3>
-          <p class="p-desc">Даёт ускоренный прогресс и награды. Активация за 1–3 минуты.</p>
-          <div class="p-foot">
-            <div class="p-price">790 ₽</div>
-            <button class="btn p-buy">Купить</button>
-          </div>
-        </div>
-      </article>
-
-      <article class="p-card" data-game="clash">
-        <div class="p-media">
-          <img src="{% static 'images/image.png'%}" alt="RAID 1000 Gems" />
-        </div>
-        <div class="p-body">
-          <h3 class="p-title">Clash — 1 200 Gems</h3>
-          <p class="p-desc">Для сундуков и бустов апгрейда. Моментальная доставка.</p>
-          <div class="p-foot">
-            <div class="p-price">699 ₽</div>
-            <button class="btn p-buy">Купить</button>
-          </div>
-        </div>
-      </article>
-
-      <article class="p-card" data-game="clash">
-        <div class="p-media">
-          <img src="{% static 'images/image.png'%}" alt="RAID 1000 Gems" />
-        </div>
-        <div class="p-body">
-          <h3 class="p-title">Clash — Gold Pass</h3>
-          <p class="p-desc">Ежемесячные награды и ускорение прокачки. Легально и безопасно.</p>
-          <div class="p-foot">
-            <div class="p-price">1 190 ₽</div>
-            <button class="btn p-buy">Купить</button>
-          </div>
-        </div>
-      </article>
-
+    </div>
+    <div id="noResults" class="no-results" style="display:none">
+      Ничего не найдено 😕
     </div>
   </section>
 </main>
 
 <script>
-  // Переключение категорий и фильтрация карточек
-  const cats = document.querySelectorAll('.cat');
+  const searchInput = document.getElementById('searchInput');
   const cards = document.querySelectorAll('.p-card');
+  const noResults = document.getElementById('noResults');
 
-  cats.forEach(c => c.addEventListener('click', () => {
-    cats.forEach(x => { x.classList.remove('active'); x.setAttribute('aria-selected', 'false'); });
-    c.classList.add('active'); c.setAttribute('aria-selected', 'true');
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase();
+    let visibleCount = 0;
 
-    const f = c.dataset.filter;
     cards.forEach(card => {
-      const show = f === 'all' || card.dataset.game === f;
-      card.style.pointerEvents = show ? 'auto' : 'none';
-      card.style.opacity = show ? '1' : '0';
-      card.style.transform = show ? 'translateY(0)' : 'translateY(6px)';
-      card.hidden = !show;
-    });
-  }));
+      const title = card.querySelector('.p-title').textContent.toLowerCase();
+      const desc = card.querySelector('.p-desc').textContent.toLowerCase();
 
-  // Кнопка купить (заглушка)
+      if (title.includes(query) || desc.includes(query)) {
+        card.style.display = '';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+  });
+
   document.querySelectorAll('.p-buy').forEach(b => {
     b.addEventListener('click', () => alert('Оформление покупки — скоро.'));
   });
