@@ -1,1 +1,34 @@
-404
+{% extends '_base.html' %}
+{% load static %}
+
+{% block title %}
+<title>404 — Страница не найдена • EVO PAY</title>
+{% endblock title %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/pages/404.css' %}">
+{% endblock styles %}
+
+{% block content %}
+<main class="e404">
+  <div class="container e404__wrap">
+    <div class="e404__art" aria-hidden="true">
+      <div class="e404__orb"></div>
+      <div class="e404__ring"></div>
+    </div>
+
+    <div class="e404__body">
+      <span class="e404__badge">Ошибка 404</span>
+      <h1 class="e404__code" aria-label="404">404</h1>
+      <p class="e404__title">Страница не найдена</p>
+      <p class="e404__text">Такой страницы здесь нет. Возможно, ссылка устарела или в адресе опечатка.</p>
+
+      <div class="e404__actions">
+        <a href="{% url 'home' %}" class="btn">На главную</a>
+        <a href="{% url 'catalog' %}" class="btn-ghost">Перейти в каталог</a>
+        <button class="e404__back" type="button" onclick="history.back()">Вернуться назад</button>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock content %}
