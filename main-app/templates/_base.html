@@ -106,13 +106,47 @@
         <div class="container f-grid">
             <div>© 2020 - 2025 EVO PAY. Все права защищены.</div>
             <nav class="f-links" aria-label="Юридическая информация">
-                <a href="{% static 'files/privacy_policy.pdf' %}" target="_blank" rel="noopener">Политика конфиденциальности</a>
+                <a href="{% static 'files/privacy_policy.pdf' %}" target="_blank" rel="noopener">Политика
+                    конфиденциальности</a>
                 <a href="{% static 'files/public_offer.pdf' %}" target="_blank" rel="noopener">Публичная оферта</a>
             </nav>
         </div>
     </footer>
 
 
+
+
+
+    <script src="https://unpkg.com/lenis@1.3.11/dist/lenis.min.js"></script>
+    <script>
+        if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            let useLenis = false;
+
+            window.addEventListener("wheel", function detectDevice(e) {
+                if (Math.abs(e.deltaY) >= 50) {
+                    useLenis = true;
+                } else {
+                    useLenis = false;
+                }
+
+                if (useLenis && !window.lenis) {
+                    const lenis = new Lenis({
+                        duration: 1.3,
+                        smoothWheel: true,
+                        normalizeWheel: true
+                    });
+
+                    function raf(t) {
+                        lenis.raf(t);
+                        requestAnimationFrame(raf);
+                    }
+                    requestAnimationFrame(raf);
+                    window.lenis = lenis;
+                }
+                window.removeEventListener("wheel", detectDevice);
+            }, { passive: true });
+        }
+    </script>
 </body>
 
 </html>

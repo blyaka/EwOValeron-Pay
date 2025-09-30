@@ -1,7 +1,9 @@
 /* Header */
 .site-header {
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 1000;
     backdrop-filter: saturate(140%) blur(8px);
     background: linear-gradient(180deg, rgba(10, 10, 14, .72), rgba(10, 10, 14, .45));
