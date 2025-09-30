@@ -125,6 +125,51 @@ section .section-title {
     box-shadow: var(--shadow);
 }
 
+
+
+
+/* WHY */
+#why .section-title {
+    margin-bottom: 20px;
+}
+
+.why-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+}
+
+.why-item {
+    border: 1px solid rgba(255, 255, 255, .08);
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: 8px;
+    align-content: start;
+    text-align: left;
+}
+
+.why-ico {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, .12);
+    background: linear-gradient(180deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .02));
+    box-shadow: inset 0 0 24px rgba(255, 42, 79, .12);
+    font-size: 20px;
+}
+
+#why h3 {
+    margin: 6px 0 0;
+    font-size: 16px;
+    letter-spacing: .2px;
+}
+
+
 /* Reviews — бегущая строка */
 .reviews-rail {
     position: relative;
@@ -335,6 +380,8 @@ section .section-title {
     margin: 24px 0
 }
 
+
+
 /* Responsive */
 @media (max-width: 1240px) {
     .hero-grid {
@@ -357,6 +404,10 @@ section .section-title {
         padding: 0 20px;
     }
 
+    .why-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
     .reviews-rail {
         margin: 0 20px;
     }
@@ -374,6 +425,10 @@ section .section-title {
 
     .kpi {
         grid-template-columns: 1fr 1fr
+    }
+
+    .why-grid {
+        grid-template-columns: 1fr;
     }
 
     .review {

@@ -7,28 +7,28 @@
 }
 
 .notice {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-left: 4px solid var(--accent);
-  border-radius: var(--radius);
-  padding: 16px 20px;
-  margin: 20px 0;
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1.5;
-  box-shadow: 0 4px 16px rgba(0,0,0,.3);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin: 20px 0;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.5;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .3);
 }
 
 .notice a {
-  color: var(--accent);
-  font-weight: 600;
-  text-decoration: none;
-  border-bottom: 1px dashed var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px dashed var(--accent);
 }
 
 .notice a:hover {
-  color: var(--accent-2);
-  border-bottom-color: var(--accent-2);
+    color: var(--accent-2);
+    border-bottom-color: var(--accent-2);
 }
 
 
@@ -180,8 +180,7 @@
 /* адаптив */
 @media (max-width: 1240px) {
     .grid {
-        grid-template-columns: 1fr;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .p-card {
@@ -191,4 +190,13 @@
     .cat-row {
         gap: 8px
     }
+}
+
+
+@media (max-width: 560px) {
+
+    .grid {
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
 }
