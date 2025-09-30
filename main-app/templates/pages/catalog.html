@@ -9,8 +9,22 @@
 {% block content %}
 
 <main class="catalog-main">
-  <section class="cat-head">
     <div class="container">
+
+      <div class="notice">
+        <p>
+          🔍 Не нашли нужный пакет или пропуск?<br>
+          На сайте представлен демонстрационный каталог популярных товаров Raid: Shadow Legends.
+          Если заказ окажется недоступен, поддержка предложит альтернативу.<br>
+          Перед заказом рекомендуется связаться с нашим саппортом
+          <a href="https://t.me/evopaysupport" target="_blank">Telegram</a>,
+          чтобы подтвердить возможность исполнения услуги.<br><br>
+          Если хотите другой набор, объём, пропуск, пакет героев или что-то уникальное —
+          пишите саппорту в <a href="https://t.me/evopaysupport" target="_blank">Telegram</a>.
+          Мы подберём подходящий вариант и предложим выгодную цену.
+        </p>
+      </div>
+
       <h1 class="section-title" style="margin-bottom:16px">Каталог</h1>
       <div class="cat-row" id="catRow">
         <input type="text" id="searchInput" class="search-input" placeholder="Поиск по товарам...">
@@ -19,15 +33,15 @@
       <div class="cat-row" id="catFilters" role="tablist" aria-label="Категории">
         <button class="cat chip is-active" data-cat="all" role="tab" aria-selected="true">Все</button>
         {% if categories %}
-          {% for c in categories %}
-            <button class="cat chip" data-cat="{{ c.id }}" role="tab" aria-selected="false">{{ c.name }}</button>
-          {% endfor %}
+        {% for c in categories %}
+        <button class="cat chip" data-cat="{{ c.id }}" role="tab" aria-selected="false">{{ c.name }}</button>
+        {% endfor %}
         {% else %}
-          <button class="cat chip" data-cat="1" role="tab" aria-selected="false">Рубины (Gems)</button>
-          <button class="cat chip" data-cat="2" role="tab" aria-selected="false">Осколки (Shards)</button>
-          <button class="cat chip" data-cat="3" role="tab" aria-selected="false">Наборы/ресурсы</button>
-          <button class="cat chip" data-cat="4" role="tab" aria-selected="false">Пропуска</button>
-          <button class="cat chip" data-cat="5" role="tab" aria-selected="false">Услуги</button>
+        <button class="cat chip" data-cat="1" role="tab" aria-selected="false">Рубины (Gems)</button>
+        <button class="cat chip" data-cat="2" role="tab" aria-selected="false">Осколки (Shards)</button>
+        <button class="cat chip" data-cat="3" role="tab" aria-selected="false">Наборы/ресурсы</button>
+        <button class="cat chip" data-cat="4" role="tab" aria-selected="false">Пропуска</button>
+        <button class="cat chip" data-cat="5" role="tab" aria-selected="false">Услуги</button>
         {% endif %}
       </div>
     </div>
@@ -39,13 +53,13 @@
 
       <article class="p-card" data-cat="{{ product.category_id }}">
         <div class="p-media" aria-hidden="true">
-            {% if product.poster %}
-              <img src="{{ product.poster.url }}" alt="{{ product.name }}">
-            {% elif product.image_url %}
-              <img src="{{ product.image_url }}" alt="{{ product.name }}">
-            {% else %}
-              <img src="{% static 'images/no-image.png' %}" alt="Нет изображения">
-            {% endif %}
+          {% if product.poster %}
+          <img src="{{ product.poster.url }}" alt="{{ product.name }}">
+          {% elif product.image_url %}
+          <img src="{{ product.image_url }}" alt="{{ product.name }}">
+          {% else %}
+          <img src="{% static 'images/no-image.png' %}" alt="Нет изображения">
+          {% endif %}
         </div>
         <div class="p-body">
           <h3 class="p-title">{{product.name}}</h3>
@@ -80,11 +94,11 @@
 
     cards.forEach(card => {
       const title = card.querySelector('.p-title').textContent.toLowerCase();
-      const desc  = card.querySelector('.p-desc').textContent.toLowerCase();
+      const desc = card.querySelector('.p-desc').textContent.toLowerCase();
       const catId = card.getAttribute('data-cat');
 
       const matchesText = !q || title.includes(q) || desc.includes(q);
-      const matchesCat  = activeCat === 'all' || catId === String(activeCat);
+      const matchesCat = activeCat === 'all' || catId === String(activeCat);
 
       const show = matchesText && matchesCat;
       card.style.display = show ? '' : 'none';

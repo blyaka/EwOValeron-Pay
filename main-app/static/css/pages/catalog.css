@@ -6,6 +6,32 @@
     padding: 32px 0 12px
 }
 
+.notice {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin: 20px 0;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+  box-shadow: 0 4px 16px rgba(0,0,0,.3);
+}
+
+.notice a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px dashed var(--accent);
+}
+
+.notice a:hover {
+  color: var(--accent-2);
+  border-bottom-color: var(--accent-2);
+}
+
+
 .cat-row {
     display: flex;
     gap: 10px;
