@@ -1,0 +1,25 @@
+{% load i18n account %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Регистрация</title>
+  {% comment %} <link rel="stylesheet" href="{% static 'css/auth.css' %}"> {% endcomment %}
+</head>
+<body>
+  <main class="auth">
+    <h1>Создать аккаунт</h1>
+    <form method="post" action="{% url 'account_signup' %}">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <label>Логин{{ form.username.errors }}{{ form.username }}</label>
+      <label>E-mail{{ form.email.errors }}{{ form.email }}</label>
+      <label>Пароль{{ form.password1.errors }}{{ form.password1 }}</label>
+      <label>Повтор пароля{{ form.password2.errors }}{{ form.password2 }}</label>
+      <label>Промокод{{ form.promo_code.errors }}{{ form.promo_code }}</label>
+      <button type="submit">Зарегистрироваться</button>
+    </form>
+    <p>Уже с нами? <a href="{% url 'account_login' %}">Войти</a></p>
+  </main>
+</body>
+</html>

@@ -141,6 +141,16 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
+ACCOUNT_LOGIN_METHODS = {"email", "username"}
+ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
+
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_SIGNUP_FORM_CLASS = "accounts.forms.PromoSignupForm"
+ACCOUNT_USERNAME_BLACKLIST = ["admin","administrator","support","moderator"]
+LOGIN_REDIRECT_URL = "/"
+
+
+
 
 
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')

@@ -1,0 +1,18 @@
+{% extends "admin/change_list.html" %}
+{% load admin_urls %}
+
+{% block object-tools-items %}
+  {{ block.super }}
+  <li>
+    <form action="{% url opts|admin_urlname:'generate_one' %}" method="post" style="display:inline">
+      {% csrf_token %}
+      <button type="submit" class="button">Создать 1 промокод</button>
+    </form>
+  </li>
+  <li>
+    <form action="{% url opts|admin_urlname:'generate_batch' %}" method="post" style="display:inline">
+      {% csrf_token %}
+      <button type="submit" class="button">Сгенерировать 20 промокодов</button>
+    </form>
+  </li>
+{% endblock %}
