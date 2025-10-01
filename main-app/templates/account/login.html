@@ -1,0 +1,50 @@
+{% extends '_base.html' %}
+{% load i18n account static %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/pages/auth.css' %}">
+{% endblock styles %}
+
+{% block content %}
+<main class="auth">
+  <div class="auth__card">
+    <span class="auth__badge">Добро пожаловать</span>
+    <h1 class="auth__title">Вход в аккаунт</h1>
+
+    <form method="post" action="{% url 'account_login' %}" novalidate>
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+
+      <label class="field">
+        <span>Логин или E-mail</span>
+        {{ form.login.errors }}
+        {{ form.login }}
+      </label>
+
+      <label class="field">
+        <span>Пароль</span>
+        {{ form.password.errors }}
+        {{ form.password }}
+      </label>
+
+      {% if form.remember %}
+        <label class="field" style="grid-auto-flow:column;align-items:center;grid-template-columns:auto 1fr;gap:10px;">
+          {{ form.remember }}
+          <span style="opacity:.9">Запомнить меня</span>
+        </label>
+      {% endif %}
+
+      {% if redirect_field_value %}
+        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+      {% endif %}
+
+      <button class="btn" type="submit">Войти</button>
+    </form>
+
+    <p class="auth__hint">
+      Нет аккаунта? <a href="{% url 'account_signup' %}">Зарегистрироваться</a><br>
+      Забыли пароль? <a href="{% url 'account_reset_password' %}">Сбросить</a>
+    </p>
+  </div>
+</main>
+{% endblock content %}

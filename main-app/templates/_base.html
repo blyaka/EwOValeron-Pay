@@ -37,13 +37,13 @@
             <nav class="menu">
                 <a href="{% url 'home' %}" aria-current="page">Главная</a>
                 <a href="{% url 'catalog' %}" aria-current="page">Каталог товаров</a>
-                <a href="#account" class="btn">Личный кабинет</a>
+                <a href="{% url 'account_login' %}" class="btn">Личный кабинет</a>
             </nav>
 
             <div class="mobile-menu" id="mobileMenu" hidden>
                 <a href="{% url 'home' %}" class="mm-link">Главная</a>
                 <a href="{% url 'catalog' %}" class="mm-link">Каталог товаров</a>
-                <a href="#account" class="mm-link btn">Личный кабинет</a>
+                <a href="{% url 'account_login' %}" class="mm-link btn">Личный кабинет</a>
             </div>
         </div>
     </header>

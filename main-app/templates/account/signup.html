@@ -1,25 +1,61 @@
+{% extends '_base.html' %}
 {% load i18n account %}
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <title>Регистрация</title>
-  {% comment %} <link rel="stylesheet" href="{% static 'css/auth.css' %}"> {% endcomment %}
-</head>
-<body>
-  <main class="auth">
-    <h1>Создать аккаунт</h1>
-    <form method="post" action="{% url 'account_signup' %}">
+{% load static %}
+
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/pages/auth.css' %}">
+{% endblock styles %}
+
+{% block content %}
+
+
+<main class="auth">
+  <div class="auth__card">
+    <span class="auth__badge">Создать аккаунт</span>
+    <h1 class="auth__title">Регистрация</h1>
+
+    <form method="post" action="{% url 'account_signup' %}" novalidate>
       {% csrf_token %}
+
       {{ form.non_field_errors }}
-      <label>Логин{{ form.username.errors }}{{ form.username }}</label>
-      <label>E-mail{{ form.email.errors }}{{ form.email }}</label>
-      <label>Пароль{{ form.password1.errors }}{{ form.password1 }}</label>
-      <label>Повтор пароля{{ form.password2.errors }}{{ form.password2 }}</label>
-      <label>Промокод{{ form.promo_code.errors }}{{ form.promo_code }}</label>
-      <button type="submit">Зарегистрироваться</button>
+
+      <label class="field">
+        <span>Логин</span>
+        {{ form.username.errors }}
+        {{ form.username }}
+      </label>
+
+      <label class="field">
+        <span>E-mail</span>
+        {{ form.email.errors }}
+        {{ form.email }}
+      </label>
+
+      <label class="field">
+        <span>Пароль</span>
+        {{ form.password1.errors }}
+        {{ form.password1 }}
+      </label>
+
+      <label class="field">
+        <span>Повтор пароля</span>
+        {{ form.password2.errors }}
+        {{ form.password2 }}
+      </label>
+
+      <label class="field">
+        <span>Промокод</span>
+        {{ form.promo_code.errors }}
+        {{ form.promo_code }}
+      </label>
+
+      <button class="btn" type="submit">Зарегистрироваться</button>
     </form>
-    <p>Уже с нами? <a href="{% url 'account_login' %}">Войти</a></p>
-  </main>
-</body>
-</html>
+
+    <p class="auth__hint">Уже с нами? <a href="{% url 'account_login' %}">Войти</a></p>
+  </div>
+</main>
+
+
+{% endblock content %}
