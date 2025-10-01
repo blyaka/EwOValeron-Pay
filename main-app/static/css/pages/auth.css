@@ -33,7 +33,7 @@
     width: 360px;
     height: 360px;
     filter: blur(30px);
-    background: radial-gradient(circle at 30% 30%, rgba(255, 42, 79, .55), rgba(255, 64, 95, .10) 70%);
+    background: radial-gradient(circle at 30% 30%, rgba(255, 42, 79, .35), rgba(255, 64, 95, 0) 70%);
     pointer-events: none;
 }
 
