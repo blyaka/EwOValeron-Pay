@@ -16,6 +16,7 @@ handler404 = 'pages.views.Custom404'
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/', include('allauth.urls')),
     path('', include('pages.urls')),
     path('404/', lambda request: render(request, '404.html'), name='404'),
 ]
