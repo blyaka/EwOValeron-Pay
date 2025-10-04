@@ -1,0 +1,121 @@
+{% extends '_base.html' %}
+{% load static %}
+
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/pages/base_lk.css'%}">
+<link rel="stylesheet" href="{% static 'css/pages/payment-status.css'%}">
+{% endblock styles %}
+
+{% block content %}
+
+
+<div class="sub-nav-lk-container">
+    <div class="sub-nav-lk">
+        <a href="">Краткая статистика</a>
+        <a href="{% url 'payment-status' %}">Статус платежей</a>
+        <a href="">Выводы</a>
+        <a href="">Генерация отчета</a>
+        <a href="">Уведомления</a>
+        <a href="{% url 'payment-links' %}">Генерация платежных ссылок</a>
+        <a href="">История чарж-беков</a>
+    </div>
+</div>
+
+
+<main>
+
+    <section class="ps-wrap">
+        <div class="ps-scroll">
+            <table class="ps-table" id="paymentsTable">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Order ID</th>
+                        <th>Комментарий</th>
+                        <th>Сумма платежа<br><small>(₽)</small></th>
+                        <th>Комиссия [7,5%]<br><small>(₽)</small></th>
+                        <th>К выплате<br><small>(₽)</small></th>
+                        <th>Метод</th>
+                        <th>Статус</th>
+                        <th>intid</th>
+                        <th>tag</th>
+                        <th>Продавец</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- сюда закинет JS -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="pagination">
+        <button class="page-btn prev" aria-label="Предыдущая">
+            <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
+                    fill="white" />
+            </svg>
+        </button>
+
+        <a href="#" class="page-num">1</a>
+        <a href="#" class="page-num active">2</a>
+        <a href="#" class="page-num">3</a>
+        
+        <button class="page-btn next" aria-label="Следующая">
+            <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg"
+                style="transform: rotate(180deg);">
+                <path
+                    d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
+                    fill="white" />
+            </svg>
+        </button>
+    </div>
+
+    <script>
+        const data = [
+            {
+                date: "22.09.2025 | 13:41",
+                order: "#20252409-32",
+                comment: "Пакет 1000 кристаллов (@ivan)",
+                amount: 1000,
+                fee: 75,
+                payout: 925,
+                method: "СБП",
+                status: "ok",
+                intid: "73638261",
+                tag: "нет",
+                seller: "ник-нейм"
+            }
+        ];
+
+        // клонируем для 10 строк
+        const payments = Array.from({ length: 15 }, () => data[0]);
+
+        const tbody = document.querySelector("#paymentsTable tbody");
+
+        payments.forEach((p, i) => {
+            const tr = document.createElement("tr");
+
+            tr.innerHTML = `
+      <td>${p.date}</td>
+      <td><span class="ps-link">${p.order}</span></td>
+      <td class="clip" title="${p.comment}">${p.comment}</td>
+      <td class="num">${p.amount}</td>
+      <td class="num">${p.fee}</td>
+      <td class="num">${p.payout}</td>
+      <td>${p.method}</td>
+      <td class="status"><span class="chk ok" aria-label="ok"></span></td>
+      <td class="mono">${p.intid}</td>
+      <td class="muted">${p.tag}</td>
+      <td>${p.seller}</td>
+    `;
+            tbody.appendChild(tr);
+        });
+    </script>
+
+</main>
+
+
+{% endblock content %}
