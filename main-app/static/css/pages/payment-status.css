@@ -1,12 +1,9 @@
-/* использует твои :root токены из проекта */
 :root {
   --line: rgba(255, 255, 255, .08);
   --line-soft: rgba(255, 255, 255, .06);
   --row-a: #1d0b11;
-  /* тёмно-бордовый как на скрине */
   --row-b: #180a10;
   --row-focus: #2a2830;
-  /* серо-фиолетовая полоса выделения */
   --head-grad: rgba(0, 0, 0, 0.62);
 
   --row-grad: linear-gradient(180deg, rgba(255, 64, 95, .10), rgba(255, 42, 79, .06));
@@ -14,9 +11,6 @@
   --glow: 0 0 0 1px rgba(255, 255, 255, .03) inset, 0 8px 32px rgba(0, 0, 0, .45);
 }
 
-main {
-  margin-top: 100px;
-}
 
 .ps-wrap {
   margin: 24px auto 28px;

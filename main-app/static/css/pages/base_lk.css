@@ -34,3 +34,8 @@
     color: var(--text);
     transition: all 0.3s ease-in-out;
 }
+
+
+main {
+  margin-top: 100px;
+}
