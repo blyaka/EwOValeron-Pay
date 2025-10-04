@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: media-nginx-conf
+  namespace: evpay
+data:
+  media.conf: |
+    server {
+      listen 8081;
+      server_name _;
+      access_log off;
+      error_log  /var/log/nginx/error.log warn;
+      types { }
+      default_type application/octet-stream;
+
+      location / {
+        root /media;
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+      }
+    }

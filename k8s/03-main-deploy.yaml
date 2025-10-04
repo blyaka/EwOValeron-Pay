@@ -5,32 +5,81 @@ metadata:
   namespace: evpay
 spec:
   replicas: 1
-  selector: { matchLabels: { app: main-app } }
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: main-app
   template:
-    metadata: { labels: { app: main-app} }
+    metadata:
+      labels:
+        app: main-app
     spec:
       containers:
       - name: web
         image: docker.io/b1yaka/ewovaleron-pay-web:latest
-        ports: [{ containerPort: 8000 }]
+        imagePullPolicy: Always
+        command:
+          - /bin/sh
+          - -lc
+          - python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60
+        ports:
+          - containerPort: 8000
         env:
-        - { name: DJANGO_DEBUG, value: "0" }
-        - { name: SECRET_KEY, valueFrom: { secretKeyRef: { name: evpay-secrets, key: DJANGO_SECRET_KEY } } }
-        - { name: DATABASE_URL, value: "postgresql://postgres:postgres@pg-postgresql.evpay.svc.cluster.local:5432/ev_main" }
-        - { name: REDIS_URL,     value: "redis://redis-master.evpay.svc.cluster.local:6379/0" }
-        - { name: RABBIT_URL,    value: "amqp://user:pass@rmq-rabbitmq.evpay.svc.cluster.local:5672//" }
-        - { name: PAY_API_URL,   value: "http://pay-api.evpay.svc.cluster.local:8000" }
-        - { name: ALLOWED_HOSTS, value: "evpayservice.com,pay.evpayservice.com" }
-        - { name: CSRF_TRUSTED_ORIGINS, value: "https://evpayservice.com,https://pay.evpayservice.com" }
-        env:
-        - { name: MEDIA_URL,  value: "/media/" }
-        - { name: DJANGO_MEDIA_ROOT, value: "/app/media" }
+          - name: DJANGO_DEBUG
+            value: "0"
+          - name: SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: evpay-secrets
+                key: DJANGO_SECRET_KEY
+          - name: DATABASE_URL
+            value: postgresql://postgres:postgres@pg.evpay.svc.cluster.local:5432/ev_main
+          - name: REDIS_URL
+            value: redis://redis-master.evpay.svc.cluster.local:6379/0
+          - name: RABBIT_URL
+            value: amqp://user:pass@rmq-rabbitmq.evpay.svc.cluster.local:5672//
+          - name: PAY_API_URL
+            value: http://pay-api.evpay.svc.cluster.local:8000
+          - name: ALLOWED_HOSTS
+            value: evpayservice.com,pay.evpayservice.com
+          - name: CSRF_TRUSTED_ORIGINS
+            value: https://evpayservice.com,https://pay.evpayservice.com
+          - name: MEDIA_URL
+            value: /media/
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 20
+          periodSeconds: 10
         volumeMounts:
-        - name: media
-          mountPath: /app/media
-        readinessProbe: { httpGet: { path: "/health", port: 8000 }, initialDelaySeconds: 10 }
-        livenessProbe:  { httpGet: { path: "/health", port: 8000 }, initialDelaySeconds: 20 }
+          - name: media
+            mountPath: /app/media
+
+      - name: media-nginx
+        image: nginx:alpine
+        ports:
+          - containerPort: 8081
+        volumeMounts:
+          - name: media
+            mountPath: /media
+          - name: media-nginx-conf
+            mountPath: /etc/nginx/conf.d
+        command: ["/bin/sh","-lc","nginx -g 'daemon off;'"]
+
       volumes:
-      - name: media
-        persistentVolumeClaim:
-          claimName: media-pvc
+        - name: media
+          persistentVolumeClaim:
+            claimName: media-pvc
+        - name: media-nginx-conf
+          configMap:
+            name: media-nginx-conf

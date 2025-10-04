@@ -3,18 +3,42 @@ kind: Ingress
 metadata:
   name: evpay-ing
   namespace: evpay
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - evpayservice.com
+        - pay.evpayservice.com
+      secretName: evpay-tls
   rules:
   - host: evpayservice.com
     http:
       paths:
+      - path: /media/
+        pathType: Prefix
+        backend:
+          service:
+            name: main-app
+            port:
+              name: media
       - path: /
         pathType: Prefix
-        backend: { service: { name: main-app, port: { number: 8000 } } }
+        backend:
+          service:
+            name: main-app
+            port:
+              name: http
   - host: pay.evpayservice.com
     http:
       paths:
       - path: /
         pathType: Prefix
-        backend: { service: { name: pay-api, port: { number: 8000 } } }
+        backend:
+          service:
+            name: pay-api
+            port:
+              number: 8000
