@@ -3,10 +3,30 @@
 
 
 {% block styles %}
+<link rel="stylesheet" href="{% static 'css/pages/base_lk.css'%}">
 <link rel="stylesheet" href="{% static 'css/pages/home.css' %}">
 {% endblock styles %}
 
 {% block content %}
+
+
+<div class="sub-nav-lk-container">
+    <div class="sub-nav-lk">
+        <a href="">Краткая статистика</a>
+        <a href="{% url 'payment-status' %}">Статус платежей</a>
+        <a href="">Выводы</a>
+        <a href="">Генерация отчета</a>
+        <a href="">Уведомления</a>
+        <a href="{% url 'payment-links' %}">Генерация платежных ссылок</a>
+        <a href="">История чарж-беков</a>
+    </div>
+</div>
+
+<main>
+
+    
+
+</main>
 
 
 {% endblock content %}
