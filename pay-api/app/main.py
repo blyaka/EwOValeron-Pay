@@ -50,17 +50,25 @@ async def send(msg: str):
 
 # ============ 1) Создание заказа ============
 from pydantic import BaseModel
-import logging
+import logging, time, hmac, hashlib
+
 logger = logging.getLogger("uvicorn.error")
 
 class OrderCreate(BaseModel):
     amount: float
     email: str
     ip: str
-    payment_method: int = 36  # 36 — карты РФ, 44 — QR СБП, 43 — SberPay
+    payment_method: int = 36   # 36 карты, 44 СБП, 43 SberPay
     description: Optional[str] = None
+    payment_id: Optional[str] = None  # твой внутренний id (paymentId)
 
 FREKASSA_BASE_URL = "https://api.fk.life/v1/"
+
+def fk_hmac_signature(data: dict, api_key: str) -> str:
+    # сортируем ключи, склеиваем значения через '|', HMAC-SHA256 (секрет — API ключ)
+    items = dict(sorted(data.items(), key=lambda x: x[0]))
+    msg = "|".join(str(v) for v in items.values())
+    return hmac.new(api_key.encode(), msg.encode(), hashlib.sha256).hexdigest()
 
 @app.post("/create_order")
 async def create_order(order: OrderCreate):
@@ -69,49 +77,50 @@ async def create_order(order: OrderCreate):
     if not API_KEY:
         raise HTTPException(status_code=500, detail="API_KEY not configured")
 
-    payload = {
-        "shopId": int(MERCHANT_ID),            # ID кассы
-        "amount": f"{order.amount:.2f}",       # строка "10.00"
+    payment_id = order.payment_id or f"ord-{int(time.time()*1000)}"
+    nonce = int(time.time()*1000)  # должен быть больше предыдущего
+
+    base_payload = {
+        "shopId": int(MERCHANT_ID),
+        "nonce": nonce,
+        "paymentId": payment_id,
+        "i": order.payment_method,
+        "email": order.email,
+        "ip": order.ip,
+        "amount": f"{order.amount:.2f}",
         "currency": "RUB",
-        "email": order.email,                  # реальный email или <tgid>@telegram.org
-        "ip": order.ip,                        # реальный IP клиента (или сервера временно)
-        "i": order.payment_method,             # способ оплаты (ТАК ТРЕБУЕТ FK)
     }
     if order.description:
-        payload["description"] = order.description
+        base_payload["description"] = order.description
 
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json",
-    }
+    signature = fk_hmac_signature(base_payload, API_KEY)
+    payload = {**base_payload, "signature": signature}
 
-    logger.info(f"FK order req: {payload}")
+    logger.info(f"FK /orders/create req: {payload}")
 
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            r = await client.post(FREKASSA_BASE_URL + "orders", json=payload, headers=headers)
+            r = await client.post(FREKASSA_BASE_URL + "orders/create", json=payload)
     except httpx.RequestError as e:
         logger.error(f"FK request error: {e}")
         raise HTTPException(status_code=502, detail="FK unreachable")
 
-    # Успех: 201 (или 200/202 у некоторых шлюзов)
+    # Успех (200/201/202). Ссылка в JSON: field "location" или в заголовке Location.
     if r.status_code in (200, 201, 202):
         pay_url = r.headers.get("Location") or r.headers.get("location")
-        if not pay_url:
-            # на всякий случай попробуем тело
-            try:
-                data = r.json()
-                pay_url = data.get("location") or data.get("Location")
-            except Exception:
-                pass
+        try:
+            data = r.json()
+            pay_url = pay_url or data.get("location") or data.get("Location")
+        except Exception:
+            pass
         if not pay_url:
             logger.error(f"FK no pay link: code={r.status_code} body={r.text[:500]}")
             raise HTTPException(status_code=500, detail="FK response without pay link")
-        return {"pay_url": pay_url}
+        return {"pay_url": pay_url, "payment_id": payment_id}
 
-    # Ошибка от FK — вернём тело для дебага
     logger.error(f"FK error {r.status_code}: {r.text[:800]}")
     raise HTTPException(status_code=502, detail=f"FK error {r.status_code}: {r.text[:300]}")
+
 
 
 
