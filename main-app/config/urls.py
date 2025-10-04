@@ -21,10 +21,7 @@ urlpatterns = [
     path('404/', lambda request: render(request, '404.html'), name='404'),
 ]
 
-
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 
 

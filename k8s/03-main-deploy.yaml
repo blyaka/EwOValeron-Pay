@@ -4,10 +4,10 @@ metadata:
   name: main-app
   namespace: evpay
 spec:
-  replicas: 2
+  replicas: 1
   selector: { matchLabels: { app: main-app } }
   template:
-    metadata: { labels: { app: main-app } }
+    metadata: { labels: { app: main-app} }
     spec:
       containers:
       - name: web
@@ -22,5 +22,15 @@ spec:
         - { name: PAY_API_URL,   value: "http://pay-api.evpay.svc.cluster.local:8000" }
         - { name: ALLOWED_HOSTS, value: "evpayservice.com,pay.evpayservice.com" }
         - { name: CSRF_TRUSTED_ORIGINS, value: "https://evpayservice.com,https://pay.evpayservice.com" }
-        readinessProbe: { httpGet: { path: "/", port: 8000 }, initialDelaySeconds: 10 }
-        livenessProbe:  { httpGet: { path: "/", port: 8000 }, initialDelaySeconds: 20 }
+        env:
+        - { name: MEDIA_URL,  value: "/media/" }
+        - { name: DJANGO_MEDIA_ROOT, value: "/app/media" }
+        volumeMounts:
+        - name: media
+          mountPath: /app/media
+        readinessProbe: { httpGet: { path: "/health", port: 8000 }, initialDelaySeconds: 10 }
+        livenessProbe:  { httpGet: { path: "/health", port: 8000 }, initialDelaySeconds: 20 }
+      volumes:
+      - name: media
+        persistentVolumeClaim:
+          claimName: media-pvc
