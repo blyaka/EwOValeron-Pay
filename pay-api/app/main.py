@@ -57,71 +57,62 @@ class OrderCreate(BaseModel):
     amount: float
     email: str
     ip: str
-    payment_method: int = 36
+    payment_method: int = 36  # 36 — карты РФ, 44 — QR СБП, 43 — SberPay
     description: Optional[str] = None
 
+FREKASSA_BASE_URL = "https://api.fk.life/v1/"
 
 @app.post("/create_order")
 async def create_order(order: OrderCreate):
-    # ДЕБАГ - логируем полученные переменные
-    logger.info(f"FK Config: MERCHANT_ID={MERCHANT_ID}, API_KEY exists={bool(API_KEY)}")
-    
-    # Проверяем что переменные загружены
     if not MERCHANT_ID:
         raise HTTPException(status_code=500, detail="MERCHANT_ID not configured")
     if not API_KEY:
         raise HTTPException(status_code=500, detail="API_KEY not configured")
 
     payload = {
-        "shopId": int(MERCHANT_ID),  # Конвертируем в число
-        "amount": order.amount,
-        "currency": "RUB", 
-        "paymentMethod": order.payment_method,
-        "email": order.email,
-        "ip": order.ip,
+        "shopId": int(MERCHANT_ID),            # ID кассы
+        "amount": f"{order.amount:.2f}",       # строка "10.00"
+        "currency": "RUB",
+        "email": order.email,                  # реальный email или <tgid>@telegram.org
+        "ip": order.ip,                        # реальный IP клиента (или сервера временно)
+        "i": order.payment_method,             # способ оплаты (ТАК ТРЕБУЕТ FK)
     }
-    
     if order.description:
         payload["description"] = order.description
 
     headers = {
         "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
-    logger.info(f"Sending to FK: {payload}")  # ДЕБАГ
+    logger.info(f"FK order req: {payload}")
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            r = await client.post(
-                "https://api.fk.life/v1/orders", 
-                json=payload, 
-                headers=headers
-            )
-            
-        logger.info(f"FK response: status={r.status_code}, body={r.text}")
-            
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.post(FREKASSA_BASE_URL + "orders", json=payload, headers=headers)
     except httpx.RequestError as e:
         logger.error(f"FK request error: {e}")
         raise HTTPException(status_code=502, detail="FK unreachable")
 
-    if r.status_code == 201:
-        pay_url = r.headers.get("Location")
-        if pay_url:
-            return {"pay_url": pay_url}
-        
-        try:
-            data = r.json()
-            pay_url = data.get("location")
-            if pay_url:
-                return {"pay_url": pay_url}
-        except Exception:
-            pass
-            
-        raise HTTPException(status_code=500, detail="FK response without pay link")
+    # Успех: 201 (или 200/202 у некоторых шлюзов)
+    if r.status_code in (200, 201, 202):
+        pay_url = r.headers.get("Location") or r.headers.get("location")
+        if not pay_url:
+            # на всякий случай попробуем тело
+            try:
+                data = r.json()
+                pay_url = data.get("location") or data.get("Location")
+            except Exception:
+                pass
+        if not pay_url:
+            logger.error(f"FK no pay link: code={r.status_code} body={r.text[:500]}")
+            raise HTTPException(status_code=500, detail="FK response without pay link")
+        return {"pay_url": pay_url}
 
-    logger.error(f"FK error: code={r.status_code} body={r.text}")
-    raise HTTPException(status_code=502, detail=f"FK error {r.status_code}")
+    # Ошибка от FK — вернём тело для дебага
+    logger.error(f"FK error {r.status_code}: {r.text[:800]}")
+    raise HTTPException(status_code=502, detail=f"FK error {r.status_code}: {r.text[:300]}")
+
 
 
 # ============ 2) Вебхук ============
