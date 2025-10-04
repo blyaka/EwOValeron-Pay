@@ -1,4 +1,4 @@
-# main.py (правки точечные)
+# main.py
 import hashlib
 import hmac
 import json
@@ -11,7 +11,7 @@ from fastapi.responses import PlainTextResponse
 import aio_pika
 
 RABBIT_URL = os.getenv("RABBIT_URL", "amqp://user:pass@rabbit:5672/")
-FREKASSA_URL = "https://api.fk.life/v1/"
+FREKASSA_BASE_URL = "https://api.fk.life/v1/"
 
 app = FastAPI()
 
@@ -21,13 +21,11 @@ SECRET_KEY = os.getenv("FREKASSA_SECRET_KEY")
 
 # --- утилиты ---
 def fk_sign(order_id: str, amount: str, currency: str, secret: str) -> str:
-    # по их схеме: orderId:amount:currency:SECRET  → HMAC-SHA256 hex
     payload = f"{order_id}:{amount}:{currency}:{secret}".encode()
     return hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
 
 def cd(a: str, b: str) -> bool:
     return hmac.compare_digest(a.lower(), b.lower())
-
 
 @app.get("/")
 async def root():
@@ -50,9 +48,6 @@ async def send(msg: str):
     await conn.close()
     return {"sent": msg}
 
-
-
-
 # ============ 1) Создание заказа ============
 from pydantic import BaseModel
 import logging
@@ -67,50 +62,71 @@ class OrderCreate(BaseModel):
 
 @app.post("/create_order")
 async def create_order(order: OrderCreate):
+    # Правильные параметры согласно документации FreeKassa
     payload = {
         "shopId": MERCHANT_ID,
-        "amount": f"{order.amount:.2f}",
+        "amount": order.amount,  # Просто число, не строка
         "currency": "RUB",
+        "paymentMethod": order.payment_method,  # 36 карты, 44 QR СБП, 43 SberPay
         "email": order.email,
         "ip": order.ip,
-        "i": order.payment_method,   # 36 карты, 44 QR СБП, 43 SberPay
     }
+    
     if order.description:
         payload["description"] = order.description
 
-    headers = {"Authorization": f"Bearer {API_KEY}"}
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            r = await client.post(FREKASSA_URL + "orders", json=payload, headers=headers)
+            # Правильный URL для создания заказа
+            r = await client.post(
+                FREKASSA_BASE_URL + "orders", 
+                json=payload, 
+                headers=headers
+            )
+            
+        logger.info(f"FK response: status={r.status_code}, headers={dict(r.headers)}")
+            
     except httpx.RequestError as e:
         logger.error(f"FK request error: {e}")
         raise HTTPException(status_code=502, detail="FK unreachable")
 
-    # 201 с Location в заголовке — норм
-    if r.status_code in (200, 201, 202):
-        pay_url = r.headers.get("Location") or r.headers.get("location")
-        if not pay_url:
-            # вдруг вернули JSON
-            try:
-                data = r.json()
-                pay_url = data.get("location") or data.get("Location")
-            except Exception:
-                pay_url = None
-        if not pay_url:
-            logger.error(f"FK response without Location: code={r.status_code} body={r.text[:500]}")
-            raise HTTPException(status_code=500, detail="FK response without pay link")
-        return {"pay_url": pay_url}
+    # 201 Created - нормальный ответ
+    if r.status_code == 201:
+        pay_url = r.headers.get("Location")
+        if pay_url:
+            return {"pay_url": pay_url}
+        
+        # Если нет Location в заголовках, пробуем получить из тела ответа
+        try:
+            data = r.json()
+            pay_url = data.get("location")
+            if pay_url:
+                return {"pay_url": pay_url}
+        except Exception:
+            pass
+            
+        logger.error(f"FK response without Location: code={r.status_code} body={r.text[:500]}")
+        raise HTTPException(status_code=500, detail="FK response without pay link")
 
-    # ошибка от FK — вернём текст чтобы понять, что им не понравилось
-    logger.error(f"FK error: code={r.status_code} body={r.text[:500]}")
-    raise HTTPException(status_code=502, detail=f"FK error {r.status_code}")
-
+    # Обработка ошибок
+    logger.error(f"FK error: code={r.status_code} body={r.text}")
+    
+    try:
+        error_data = r.json()
+        error_detail = error_data.get("detail", error_data.get("message", r.text))
+    except:
+        error_detail = r.text
+        
+    raise HTTPException(status_code=502, detail=f"FK error {r.status_code}: {error_detail}")
 
 # ============ 2) Вебхук ============
 @app.post("/webhook", response_class=PlainTextResponse)
 async def webhook(request: Request):
-    # могут прислать JSON или form; пытаемся оба варианта
     ctype = request.headers.get("content-type", "")
     if "application/json" in ctype:
         data = await request.json()
@@ -118,13 +134,12 @@ async def webhook(request: Request):
         form = await request.form()
         data = dict(form)
 
-    # обязательные поля
     try:
         order_id = str(data["orderId"])
         amount = str(data["amount"])
         currency = str(data["currency"])
         got_sign = str(data.get("sign") or data.get("signature"))
-        status = str(data.get("status", ""))   # success / failed / pending
+        status = str(data.get("status", ""))
     except KeyError as e:
         raise HTTPException(status_code=400, detail=f"Missing field: {e}")
 
@@ -132,7 +147,6 @@ async def webhook(request: Request):
     if not cd(got_sign, must):
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # публикуем событие в Rabbit (идемпотентность решай в консюмере/БД)
     event = {
         "provider": "freekassa",
         "order_id": order_id,
@@ -141,17 +155,19 @@ async def webhook(request: Request):
         "status": status,
         "raw": data,
     }
+    
     try:
         conn = await aio_pika.connect_robust(RABBIT_URL)
         ch = await conn.channel()
         await ch.default_exchange.publish(
-            aio_pika.Message(body=json.dumps(event, ensure_ascii=False).encode(), delivery_mode=aio_pika.DeliveryMode.PERSISTENT),
+            aio_pika.Message(
+                body=json.dumps(event, ensure_ascii=False).encode(), 
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT
+            ),
             routing_key="payments.events",
         )
         await conn.close()
-    except Exception:
-        # не роняем вебхук из-за брокера; логируй при желании
-        pass
+    except Exception as e:
+        logger.error(f"RabbitMQ error: {e}")
 
-    # FreeKassa ожидает текст "OK" (без JSON), чтобы не ретраить
     return "OK"
