@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: main-worker
+  namespace: evpay
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: main-worker } }
+  template:
+    metadata: { labels: { app: main-worker } }
+    spec:
+      containers:
+      - name: worker
+        image: docker.io/b1yaka/ewovaleron-pay-web:latest
+        command: ["bash","-lc","celery -A config.celery_app worker -l info -c 2 --prefetch-multiplier=16"]
+        env:
+        - { name: DJANGO_DEBUG, value: "0" }
+        - { name: SECRET_KEY, valueFrom: { secretKeyRef: { name: evpay-secrets, key: DJANGO_SECRET_KEY } } }
+        - { name: DATABASE_URL, value: "postgresql://postgres:postgres@pg-postgresql.evpay.svc.cluster.local:5432/ev_main" }
+        - { name: REDIS_URL,     value: "redis://redis-master.evpay.svc.cluster.local:6379/0" }
+        - { name: RABBIT_URL,    value: "amqp://user:pass@rmq-rabbitmq.evpay.svc.cluster.local:5672//" }
+        - { name: PAY_API_URL,   value: "http://pay-api.evpay.svc.cluster.local:8000" }
+        - { name: ALLOWED_HOSTS, value: "evpayservice.com,pay.evpayservice.com" }
+        - { name: CSRF_TRUSTED_ORIGINS, value: "https://evpayservice.com,https://pay.evpayservice.com" }

@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'main-app/**'
+      - 'k8s/**'
       - '.github/workflows/main-app.yml'
   workflow_dispatch:
 
@@ -59,8 +60,7 @@ jobs:
         run: |
           set -e
           kubectl -n evpay delete job main-migrate --ignore-not-found=true
-          # если манифест лежит в ./k8s/07-migrate-job.yaml
-          kubectl -n evpay apply -f ./k8s/07-migrate-job.yaml || kubectl -n evpay apply -f 07-migrate-job.yaml
+          kubectl -n evpay apply -f k8s/07-migrate-job.yaml
           kubectl -n evpay wait --for=condition=complete job/main-migrate --timeout=180s || \
             (kubectl -n evpay logs job/main-migrate --tail=-1; exit 1)
           kubectl -n evpay logs job/main-migrate --tail=-1

@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: evpay-ing
+  namespace: evpay
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: evpayservice.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend: { service: { name: main-app, port: { number: 8000 } } }
+  - host: pay.evpayservice.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend: { service: { name: pay-api, port: { number: 8000 } } }
