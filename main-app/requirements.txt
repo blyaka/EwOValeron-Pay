@@ -8,3 +8,4 @@ celery
 dj-database-url
 requests
 pika
+whitenoise
