@@ -52,19 +52,29 @@ async def send(msg: str):
 
 
 
+from pydantic import BaseModel
+
+class OrderCreate(BaseModel):
+    amount: float
+    email: str
+    ip: str
+    payment_method: int = 36
+    description: Optional[str] = None
+
+
 # ============ 1) Создание заказа ============
 @app.post("/create_order")
-async def create_order(amount: float, email: str, ip: str, payment_method: int = 36, description: Optional[str] = None):
+async def create_order(order: OrderCreate):
     payload = {
         "shopId": MERCHANT_ID,
-        "amount": f"{amount:.2f}",     # строкой, с 2 знаками
+        "amount": f"{order.amount:.2f}",
         "currency": "RUB",
-        "email": email,                # real email или <tgid>@telegram.org
-        "ip": ip,                      # реальный IP клиента (или серверный временно)
-        "i": payment_method,           # 36 карты, 44 QR СБП, 43 SberPay
+        "email": order.email,
+        "ip": order.ip,
+        "i": order.payment_method,
     }
-    if description:
-        payload["description"] = description
+    if order.description:
+        payload["description"] = order.description
 
     headers = {"Authorization": f"Bearer {API_KEY}"}
 
@@ -73,11 +83,11 @@ async def create_order(amount: float, email: str, ip: str, payment_method: int =
         r.raise_for_status()
 
     data = r.json()
-    # в ответе ссылка обычно в поле Location / location
     pay_url = data.get("location") or data.get("Location")
     if not pay_url:
         raise HTTPException(status_code=500, detail=f"FK response without location: {data}")
     return {"pay_url": pay_url}
+
 
 # ============ 2) Вебхук ============
 @app.post("/webhook", response_class=PlainTextResponse)
