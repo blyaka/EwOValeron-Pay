@@ -52,32 +52,60 @@ async def send(msg: str):
 
 
 
+
 # ============ 1) Создание заказа ============
+from pydantic import BaseModel
+import logging
+logger = logging.getLogger("uvicorn.error")
+
+class OrderCreate(BaseModel):
+    amount: float
+    email: str
+    ip: str
+    payment_method: int = 36
+    description: Optional[str] = None
+
 @app.post("/create_order")
-async def create_order(amount: float, email: str, ip: str, payment_method: int = 36, description: Optional[str] = None):
+async def create_order(order: OrderCreate):
     payload = {
         "shopId": MERCHANT_ID,
-        "amount": f"{amount:.2f}",     # строкой, с 2 знаками
+        "amount": f"{order.amount:.2f}",
         "currency": "RUB",
-        "email": email,                # real email или <tgid>@telegram.org
-        "ip": ip,                      # реальный IP клиента (или серверный временно)
-        "i": payment_method,           # 36 карты, 44 QR СБП, 43 SberPay
+        "email": order.email,
+        "ip": order.ip,
+        "i": order.payment_method,   # 36 карты, 44 QR СБП, 43 SberPay
     }
-    if description:
-        payload["description"] = description
+    if order.description:
+        payload["description"] = order.description
 
     headers = {"Authorization": f"Bearer {API_KEY}"}
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        r = await client.post(FREKASSA_URL + "orders", json=payload, headers=headers)
-        r.raise_for_status()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            r = await client.post(FREKASSA_URL + "orders", json=payload, headers=headers)
+    except httpx.RequestError as e:
+        logger.error(f"FK request error: {e}")
+        raise HTTPException(status_code=502, detail="FK unreachable")
 
-    data = r.json()
-    # в ответе ссылка обычно в поле Location / location
-    pay_url = data.get("location") or data.get("Location")
-    if not pay_url:
-        raise HTTPException(status_code=500, detail=f"FK response without location: {data}")
-    return {"pay_url": pay_url}
+    # 201 с Location в заголовке — норм
+    if r.status_code in (200, 201, 202):
+        pay_url = r.headers.get("Location") or r.headers.get("location")
+        if not pay_url:
+            # вдруг вернули JSON
+            try:
+                data = r.json()
+                pay_url = data.get("location") or data.get("Location")
+            except Exception:
+                pay_url = None
+        if not pay_url:
+            logger.error(f"FK response without Location: code={r.status_code} body={r.text[:500]}")
+            raise HTTPException(status_code=500, detail="FK response without pay link")
+        return {"pay_url": pay_url}
+
+    # ошибка от FK — вернём текст чтобы понять, что им не понравилось
+    logger.error(f"FK error: code={r.status_code} body={r.text[:500]}")
+    raise HTTPException(status_code=502, detail=f"FK error {r.status_code}")
+
 
 # ============ 2) Вебхук ============
 @app.post("/webhook", response_class=PlainTextResponse)
