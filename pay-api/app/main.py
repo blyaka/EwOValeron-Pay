@@ -60,14 +60,23 @@ class OrderCreate(BaseModel):
     payment_method: int = 36
     description: Optional[str] = None
 
+
 @app.post("/create_order")
 async def create_order(order: OrderCreate):
-    # Правильные параметры согласно документации FreeKassa
+    # ДЕБАГ - логируем полученные переменные
+    logger.info(f"FK Config: MERCHANT_ID={MERCHANT_ID}, API_KEY exists={bool(API_KEY)}")
+    
+    # Проверяем что переменные загружены
+    if not MERCHANT_ID:
+        raise HTTPException(status_code=500, detail="MERCHANT_ID not configured")
+    if not API_KEY:
+        raise HTTPException(status_code=500, detail="API_KEY not configured")
+
     payload = {
-        "shopId": MERCHANT_ID,
-        "amount": order.amount,  # Просто число, не строка
-        "currency": "RUB",
-        "paymentMethod": order.payment_method,  # 36 карты, 44 QR СБП, 43 SberPay
+        "shopId": int(MERCHANT_ID),  # Конвертируем в число
+        "amount": order.amount,
+        "currency": "RUB", 
+        "paymentMethod": order.payment_method,
         "email": order.email,
         "ip": order.ip,
     }
@@ -80,28 +89,27 @@ async def create_order(order: OrderCreate):
         "Content-Type": "application/json"
     }
 
+    logger.info(f"Sending to FK: {payload}")  # ДЕБАГ
+
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            # Правильный URL для создания заказа
             r = await client.post(
-                FREKASSA_BASE_URL + "orders", 
+                "https://api.fk.life/v1/orders", 
                 json=payload, 
                 headers=headers
             )
             
-        logger.info(f"FK response: status={r.status_code}, headers={dict(r.headers)}")
+        logger.info(f"FK response: status={r.status_code}, body={r.text}")
             
     except httpx.RequestError as e:
         logger.error(f"FK request error: {e}")
         raise HTTPException(status_code=502, detail="FK unreachable")
 
-    # 201 Created - нормальный ответ
     if r.status_code == 201:
         pay_url = r.headers.get("Location")
         if pay_url:
             return {"pay_url": pay_url}
         
-        # Если нет Location в заголовках, пробуем получить из тела ответа
         try:
             data = r.json()
             pay_url = data.get("location")
@@ -110,19 +118,11 @@ async def create_order(order: OrderCreate):
         except Exception:
             pass
             
-        logger.error(f"FK response without Location: code={r.status_code} body={r.text[:500]}")
         raise HTTPException(status_code=500, detail="FK response without pay link")
 
-    # Обработка ошибок
     logger.error(f"FK error: code={r.status_code} body={r.text}")
-    
-    try:
-        error_data = r.json()
-        error_detail = error_data.get("detail", error_data.get("message", r.text))
-    except:
-        error_detail = r.text
-        
-    raise HTTPException(status_code=502, detail=f"FK error {r.status_code}: {error_detail}")
+    raise HTTPException(status_code=502, detail=f"FK error {r.status_code}")
+
 
 # ============ 2) Вебхук ============
 @app.post("/webhook", response_class=PlainTextResponse)
