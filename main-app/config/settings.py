@@ -11,7 +11,11 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-very-secret-key")
 DEBUG = str(os.getenv("DJANGO_DEBUG", "0")).lower() in ("1", "true", "yes")
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
-CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -66,15 +70,23 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": os.environ.get("POSTGRES_DB", "ev_main"),
+#         "USER": os.environ.get("POSTGRES_USER", "postgres"),
+#         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "postgres"),
+#         "HOST": os.environ.get("POSTGRES_HOST", "db-main"),
+#         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+#     }
+# }
+
+import dj_database_url
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_DB", "lsillumination"),
-        "USER": os.environ.get("POSTGRES_USER", "postgres"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "postgres"),
-        "HOST": os.environ.get("POSTGRES_HOST", "db"),
-        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-    }
+    "default": dj_database_url.config(
+        default=os.getenv("DATABASE_URL", "postgresql://postgres:postgres@db-main:5432/ev_main")
+    )
 }
 
 
@@ -119,8 +131,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = str(BASE_DIR.joinpath('media'))
 
 
-ACCOUNT_LOGIN_METHODS = {"username"}
-ACCOUNT_SIGNUP_FIELDS = ["username*", "password1*", "password2*"]
+
 ACCOUNT_EMAIL_VERIFICATION = "none"
 ACCOUNT_PRESERVE_USERNAME_CASING = False
 
@@ -147,7 +158,6 @@ ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_SIGNUP_FORM_CLASS = "accounts.forms.PromoSignupForm"
 ACCOUNT_USERNAME_BLACKLIST = ["admin","administrator","support","moderator"]
-LOGIN_REDIRECT_URL = "/"
 
 
 
@@ -175,9 +185,20 @@ CACHES = {
     }
 }
 
+
+CELERY_BROKER_URL = os.getenv("RABBIT_URL")
+CELERY_RESULT_BACKEND = REDIS_URL
+
+
 RATE_SHORT = int(os.getenv('RATE_SHORT', 30))
 RATE_SHORT_MAX = int(os.getenv('RATE_SHORT_MAX', 3))
 RATE_HOUR = int(os.getenv('RATE_HOUR', 3600))
 RATE_HOUR_MAX = int(os.getenv('RATE_HOUR_MAX', 20))
 FORM_MIN_SECONDS = int(os.getenv('FORM_MIN_SECONDS', 3))
 FORM_MAX_SECONDS = int(os.getenv('FORM_MAX_SECONDS', 3600))
+
+
+
+
+
+PAY_API_URL = os.getenv("PAY_API_URL", "http://pay-api:8000")

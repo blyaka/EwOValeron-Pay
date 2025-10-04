@@ -1,36 +1,100 @@
+version: "3.9"
+
 services:
   web:
     build: ./main-app
-    command: python manage.py runserver 0.0.0.0:8000
+    command: bash -lc "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
-      - ./main-app:/main-app
-    ports:
-      - "8000:8000"
-    env_file: .env
+      - ./main-app:/app
+    working_dir: /app
+    ports: ["8000:8000"]
+    environment:
+      DJANGO_DEBUG: "1"
+      DJANGO_SECRET_KEY: dev-secret
+      ALLOWED_HOSTS: "*"
+      DATABASE_URL: postgresql://postgres:postgres@db-main:5432/ev_main
+      REDIS_URL: redis://redis:6379/0
+      RABBIT_URL: amqp://user:pass@rabbit:5672/
+      PAY_API_URL: http://pay-api:8000
     depends_on:
-      db:
+      db-main:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+      rabbit:
+        condition: service_healthy
 
-  db:
+  worker:
+    build: ./main-app
+    command: bash -lc "celery -A config.celery_app worker -l info"
+    volumes:
+      - ./main-app:/app
+    working_dir: /app
+    environment:
+      DJANGO_DEBUG: "1"
+      DJANGO_SECRET_KEY: dev-secret
+      ALLOWED_HOSTS: "*"
+      DATABASE_URL: postgresql://postgres:postgres@db-main:5432/ev_main
+      REDIS_URL: redis://redis:6379/0
+      RABBIT_URL: amqp://user:pass@rabbit:5672/
+    depends_on:
+      db-main:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbit:
+        condition: service_healthy
+
+  pay-api:
+    build: ./pay-api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000  # поправь модуль, если другой
+    volumes:
+      - ./pay-api:/app
+    working_dir: /app
+    ports: ["8001:8000"]
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db-pay:5432/ev_pay
+      REDIS_URL: redis://redis:6379/1
+      RABBIT_URL: amqp://user:pass@rabbit:5672/
+      # опционально: PAY_PROVIDER_URL, CALLBACK_URL и т.п.
+    depends_on:
+      db-pay:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbit:
+        condition: service_healthy
+
+  db-main:
     image: postgres:17-alpine
     environment:
       POSTGRES_DB: ev_main
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pg_main:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d ev_main"]
       interval: 5s
       timeout: 3s
-      retries: 20
+      retries: 30
+
+  db-pay:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ev_pay
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pg_pay:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ev_pay"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   redis:
     image: redis:7-alpine
-    container_name: ev_redis
-    restart: always
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redisdata:/data
@@ -38,8 +102,23 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
+
+  rabbit:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: pass
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
 volumes:
-  pgdata: {}
+  pg_main: {}
+  pg_pay: {}
   redisdata: {}

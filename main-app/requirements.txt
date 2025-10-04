@@ -4,3 +4,7 @@ psycopg2-binary
 gunicorn
 pillow
 django-redis
+celery
+dj-database-url
+requests
+pika
