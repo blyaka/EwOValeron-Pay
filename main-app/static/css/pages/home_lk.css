@@ -1,0 +1,67 @@
+main {
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 200px 0px;
+}
+
+.hello {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 50px;
+}
+
+.hello h1 {
+    font-size: 3rem;
+    color: var(--text);
+    font-weight: 400;
+}
+
+.hello h2 {
+    font-size: 2rem;
+    color: var(--muted);
+    font-weight: 400;
+}
+
+
+.home-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
+}
+
+.home-menu h3 {
+    font-size: 1.25rem;
+    color: var(--muted);
+    font-weight: 400;
+}
+
+.lk-menu-list {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.lk-menu-list a {
+    font-weight: 400;
+    width: max-content;
+    opacity: 1;
+    border-radius: 10px;
+    padding: 9px 14px;
+    border: 1px solid rgba(255, 255, 255, .12);
+    background: rgba(255, 255, 255, .03);
+    font-size: 1.5rem;
+    color: var(--muted);
+    transition: all 0.3s ease-in-out;
+}
+
+.lk-menu-list a:hover {
+    background: rgba(129, 24, 44, 1);
+    color: var(--text);
+    transition: all 0.3s ease-in-out;
+}
