@@ -99,9 +99,9 @@
                     {% if p.status|lower == "paid" or p.status|lower == "success" %}
                         <span class="chk ok" aria-label="ok"></span>
                     {% elif p.status|lower == "pending" %}
-                        <span class="chk wait" aria-label="pending"></span>
+                        <span class="chk wait" aria-label="pending">pending</span>
                     {% else %}
-                        <span class="chk fail" aria-label="{{ p.status }}"></span>
+                        <span class="chk fail" aria-label="{{ p.status }}">fail</span>
                     {% endif %}
                     </td>
                     <td class="mono">{{ p.intid }}</td>

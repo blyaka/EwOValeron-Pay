@@ -9,3 +9,4 @@ dj-database-url
 requests
 pika
 whitenoise
+aio_pika
