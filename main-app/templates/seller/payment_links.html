@@ -214,6 +214,7 @@
             <button class="btn" id="genBtn">Сгенерировать</button>
         </div>
     </div>
+
 </main>
 
 
@@ -276,92 +277,183 @@
 
 
 
-<!-- Скрипт открытия модалки и заполенения таблицы -->
 <script>
-    const modal = document.getElementById('genModal');
-    const openBtn = document.querySelector('.ps-filters a.chip');
-    const closeBtn = document.getElementById('genClose');
-    const orderEl = document.getElementById('orderId');
-    const expH = document.getElementById('expH');
-    const expM = document.getElementById('expM');
-    const hint = document.getElementById('timeHint');
-    const genBtn = document.getElementById('genBtn');
-    const tbody = document.querySelector('#paymentsTable tbody');
+(function () {
+  const $ = s => document.querySelector(s);
+  const modal = $('#genModal');
+  const openBtn = document.querySelector('.ps-filters a.chip'); // "Добавить ссылку"
+  const closeBtn = $('#genClose');
+  const orderEl = $('#orderId');
+  const expH = $('#expH');
+  const expM = $('#expM');
+  const hint = $('#timeHint');
+  const genBtn = $('#genBtn');
+  const tbody = document.querySelector('#paymentsTable tbody');
+  const payMethodKeyEl = $('#payMethod'); // "sbp" | "card" | "sberpay"
+  let __scrollY = 0;
 
-    let __scrollY = 0;
+  // метод -> ID для ФК
+  const METHOD_MAP = { sbp: 44, card: 36, sberpay: 35 }; // 35 сейчас используем как плейсхолдер
 
-    function lockBody() {
-        __scrollY = window.scrollY || window.pageYOffset;
-        const sbw = window.innerWidth - document.documentElement.clientWidth; // ширина скроллбара
-        document.documentElement.classList.add('modal-open');
-        document.body.classList.add('modal-open');
-        document.body.style.position = 'fixed';
-        document.body.style.top = `-${__scrollY}px`;
-        document.body.style.left = '0';
-        document.body.style.right = '0';
-        if (sbw > 0) document.body.style.paddingRight = sbw + 'px';
+  // csrf
+  function getCookie(name) {
+    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+  const csrftoken = getCookie('csrftoken');
+
+  // lock/unlock body при открытой модалке
+  function lockBody() {
+    __scrollY = window.scrollY || window.pageYOffset;
+    const sbw = window.innerWidth - document.documentElement.clientWidth;
+    document.documentElement.classList.add('modal-open');
+    document.body.classList.add('modal-open');
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${__scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    if (sbw > 0) document.body.style.paddingRight = sbw + 'px';
+  }
+  function unlockBody() {
+    document.documentElement.classList.remove('modal-open');
+    document.body.classList.remove('modal-open');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.paddingRight = '';
+    window.scrollTo(0, __scrollY);
+  }
+
+  function openModal() {
+    modal.classList.add('show');
+    lockBody();
+    orderEl.textContent = '#—'; // реальный order_id покажем после ответа
+  }
+  function closeModal() { modal.classList.remove('show'); unlockBody(); }
+
+  openBtn.addEventListener('click', e => { e.preventDefault(); openModal(); });
+  closeBtn.addEventListener('click', closeModal);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // TTL-хинт чисто визуально
+  function formatTTL(h, m) {
+    const total = h * 60 + m;
+    const d = Math.floor(total / 1440);
+    const hh = Math.floor((total % 1440) / 60);
+    const mm = total % 60;
+    return `${d}д ${hh}ч ${mm}м`;
+  }
+  [expH, expM].forEach(el => el.addEventListener('input', () => {
+    const h = +expH.value || 0, m = +expM.value || 0;
+    hint.textContent = 'Ссылка активна: ' + formatTTL(h, m);
+  }));
+
+  // помощники
+  function fmtDate(dt) {
+    const d = new Date(dt);
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yyyy = d.getFullYear();
+    const HH = String(d.getHours()).padStart(2,'0');
+    const MM = String(d.getMinutes()).padStart(2,'0');
+    return `${dd}.${mm}.${yyyy} | ${HH}:${MM}`;
+  }
+  function ttlFromNow(expiresAtIso) {
+    const now = new Date();
+    const exp = new Date(expiresAtIso);
+    if (exp <= now) return 'истекла';
+    const diffMin = Math.floor((exp - now) / 60000);
+    const d = Math.floor(diffMin / 1440);
+    const h = Math.floor((diffMin % 1440) / 60);
+    const m = diffMin % 60;
+    return `${d}д ${h}ч ${m}м`;
     }
 
-    function unlockBody() {
-        document.documentElement.classList.remove('modal-open');
-        document.body.classList.remove('modal-open');
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
-        document.body.style.paddingRight = '';
-        window.scrollTo(0, __scrollY);
-    }
+  // добавить строку в таблицу
+  function prependRow(p) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${fmtDate(new Date())}</td>
+      <td>#${p.order_id}</td>
+      <td>${p.amount}</td>
+      <td>${p.comment || ''}</td>
+      <td>${p.tag || '—'}</td>
+      <td data-exp="${p.expires_at}">${ttlFromNow(p.expires_at)}</td>
+      <td>pending</td>
+      <td>
+        <button class="btn small copy-btn" data-url="${p.public_url}">Скопировать</button>
+        <a class="btn small" target="_blank" rel="noopener" href="${p.public_url}">Открыть</a>
+      </td>
+    `;
+    tbody.prepend(tr);
+  }
 
-    function openModal() {
-        modal.classList.add('show');
-        lockBody();
-        const id = '#2025' + Math.floor(100000 + Math.random() * 900000);
-        orderEl.textContent = id;
+  // копирование
+  tbody.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.copy-btn');
+    if (!btn) return;
+    try {
+      await navigator.clipboard.writeText(btn.dataset.url);
+      btn.textContent = 'Скопировано';
+      setTimeout(() => btn.textContent = 'Скопировать', 1500);
+    } catch {
+      alert('Не удалось скопировать');
     }
-    function closeModal() {
-        modal.classList.remove('show');
-        unlockBody();
+  });
+
+  // сабмит "Сгенерировать"
+  genBtn.addEventListener('click', async () => {
+    const amount = ($('#amount').value || '').trim();
+    const comment = ($('#comment').value || '').trim();
+    const tag = ($('#tg-input').value || '').trim();
+    const methodKey = ($('#payMethod').value || 'sbp').toLowerCase();
+    const method = METHOD_MAP[methodKey] || 44;
+
+    if (!amount || Number(amount) <= 0) { alert('Введите сумму'); return; }
+
+    const body = new URLSearchParams({ amount, method, comment, tag });
+
+    try {
+      const resp = await fetch("{% url 'generate_link' %}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+          'X-CSRFToken': csrftoken
+        },
+        body: body.toString()
+      });
+      const data = await resp.json();
+
+      if (!resp.ok || !data.ok) {
+        const err = data.errors ? JSON.stringify(data.errors) : (data.error || 'Ошибка создания');
+        throw new Error(err);
+      }
+
+      // обновим модалку и таблицу
+      orderEl.textContent = '#' + data.order_id;
+      prependRow({
+        order_id: data.order_id,
+        public_url: data.public_url || data.pay_url, // совместимость, но должно быть public_url
+        amount: data.amount,
+        comment: data.comment,
+        tag: data.tag,
+        expires_at: data.expires_at || new Date(Date.now() + 24*3600*1000).toISOString()
+      });
+
+      // откроем ссылку сразу
+      window.open(data.public_url || data.pay_url, '_blank');
+
+      // по желанию можно закрыть модалку:
+      // closeModal();
+
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
     }
-
-    openBtn.addEventListener('click', e => { e.preventDefault(); openModal(); });
-    closeBtn.addEventListener('click', closeModal);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-    function formatTTL(h, m) {
-        let total = h * 60 + m;
-        let days = Math.floor(total / 1440);
-        let hours = Math.floor((total % 1440) / 60);
-        let mins = total % 60;
-        return `${days}д ${hours}ч ${mins}м`;
-    }
-    [expH, expM].forEach(el => el.addEventListener('input', () => {
-        const h = +expH.value || 0, m = +expM.value || 0;
-        hint.textContent = 'Ссылка активна: ' + formatTTL(h, m);
-    }));
-
-    // Тестовые 10 строк
-    const fakeRows = Array.from({ length: 10 }, (_, i) => ({
-        date: `0${i + 1}.10.2025`,
-        order: `#2025${Math.floor(100000 + i)}`,
-        amount: (500 + i * 50),
-        comment: `Тест заказ ${i + 1}`,
-        tag: i % 2 ? 'promo' : 'test',
-        ttl: '1д 2ч',
-        status: 'Активна'
-    }));
-    tbody.innerHTML = fakeRows.map(r => `
-<tr>
-  <td>${r.date}</td>
-  <td>${r.order}</td>
-  <td>${r.amount}</td>
-  <td>${r.comment}</td>
-  <td>${r.tag}</td>
-  <td>${r.ttl}</td>
-  <td>${r.status}</td>
-  <td><button class="btn small">Скопировать</button></td>
-</tr>`).join('');
+  });
+})();
 </script>
+
 
 
 

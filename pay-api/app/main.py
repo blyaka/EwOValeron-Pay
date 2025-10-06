@@ -11,7 +11,7 @@ from typing import Optional, Dict, Any
 import httpx
 import aio_pika
 from fastapi import FastAPI, Request, HTTPException, Header
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from pydantic import BaseModel
 from urllib.parse import urlencode, quote
 
@@ -27,6 +27,11 @@ API_KEY     = os.getenv("FREKASSA_API_KEY")
 SECRET_KEY  = os.getenv("FREKASSA_SECRET_KEY")
 SECRET1     = os.getenv("FREKASSA_SECRET_KEY")
 SECRET2     = os.getenv("FREKASSA_SECRET2")
+
+
+PAY_LINK_TTL_HOURS = int(os.getenv("PAY_LINK_TTL_HOURS", "24"))
+IDEMP_TTL_SEC = int(os.getenv("IDEMP_TTL_SEC", "86400"))  # 24h
+INTERNAL_TOKEN = os.getenv("PAY_INTERNAL_TOKEN")
 
 app = FastAPI()
 logger = logging.getLogger("uvicorn.error")
@@ -80,11 +85,10 @@ async def ping():
 # ============ Идемпотентность ============
 
 
-IDEMP_TTL_SEC = int(os.getenv("IDEMP_TTL_SEC", "86400"))  # 24h
-INTERNAL_TOKEN = os.getenv("PAY_INTERNAL_TOKEN")
+
 
 _idem_lock = asyncio.Lock()
-_idem_store: dict[str, dict] = {}  # key -> {"expires": dt, "payload": {...}}
+_idem_store: dict[str, dict] = {}
 
 async def idem_get(key: str) -> Optional[Dict[str, Any]]:
     now = datetime.utcnow()
@@ -125,11 +129,9 @@ async def create_order(
     x_internal_token: Optional[str] = Header(None, convert_underscores=False),
     x_idempotency_key: Optional[str] = Header(None, convert_underscores=False),
 ):
-    # внутренняя авторизация
     if INTERNAL_TOKEN and x_internal_token != INTERNAL_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # если пришел идемпотентный ключ — пробуем отдать сохраненный ответ
     if x_idempotency_key:
         cached = await idem_get(x_idempotency_key)
         if cached:
@@ -181,13 +183,111 @@ async def create_order(
             raise HTTPException(status_code=500, detail="FK response without pay link")
 
         resp = {"pay_url": pay_url, "payment_id": payment_id}
-        # сохраняем ответ по idem-ключу
         if x_idempotency_key:
             await idem_set(x_idempotency_key, resp)
         return resp
 
     logger.error("FK error %s: %s", r.status_code, r.text[:800])
     raise HTTPException(status_code=502, detail=f"FK error {r.status_code}: {r.text[:300]}")
+
+
+# ============ прокладка (временные ссылки) ============
+_link_lock = asyncio.Lock()
+_link_store: dict[str, dict] = {}  # token -> {"fk_url": str, "expires_at": datetime}
+
+
+async def link_get(token: str) -> Optional[Dict[str, Any]]:
+    async with _link_lock:
+        rec = _link_store.get(token)
+        if not rec:
+            return None
+        # если ссылка протухла — удаляем и возвращаем None
+        if rec["expires_at"] < datetime.utcnow():
+            _link_store.pop(token, None)
+            return None
+        return rec
+
+
+async def link_set(token: str, fk_url: str, ttl_hours: int = PAY_LINK_TTL_HOURS):
+    async with _link_lock:
+        _link_store[token] = {
+            "fk_url": fk_url,
+            "expires_at": datetime.utcnow() + timedelta(hours=ttl_hours),
+        }
+
+
+@app.get("/pay/{token}")
+async def pay_redirect(token: str):
+    rec = await link_get(token)
+    if not rec:
+        raise HTTPException(status_code=404, detail="Link not found or expired")
+    return RedirectResponse(url=rec["fk_url"], status_code=302)
+
+
+# ====== прокладка ======
+class InternalCreateLink(BaseModel):
+    amount: float
+    email: str
+    ip: str
+    payment_method: int = 36
+    description: Optional[str] = None
+    payment_id: Optional[str] = None
+
+
+@app.post("/internal/create_link")
+async def internal_create_link(
+    body: InternalCreateLink,
+    request: Request,
+    x_internal_token: Optional[str] = Header(None, convert_underscores=False),
+    x_idempotency_key: Optional[str] = Header(None, convert_underscores=False),
+):
+    if INTERNAL_TOKEN and x_internal_token != INTERNAL_TOKEN:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if x_idempotency_key:
+        cached = await idem_get(x_idempotency_key)
+        if cached:
+            fk_url = cached.get("fk_url") or cached.get("pay_url")
+            if fk_url:
+                token = cached.get("token") or x_idempotency_key
+                await link_set(token, fk_url, ttl_hours=PAY_LINK_TTL_HOURS)
+
+                resp = {
+                    "public_url": f"https://pay.evpayservice.com/pay/{token}",
+                    "token": token,
+                    "payment_id": cached.get("payment_id"),
+                    "fk_url": fk_url,
+                    "expires_at": (datetime.utcnow() + timedelta(hours=PAY_LINK_TTL_HOURS)).isoformat() + "Z",
+                }
+                await idem_set(x_idempotency_key, resp)
+                return resp
+
+    order_payload = OrderCreate(**body.model_dump())
+    created = await create_order(
+        order=order_payload,
+        request=request,
+        x_internal_token=x_internal_token,
+        x_idempotency_key=x_idempotency_key,
+    )
+
+    fk_url = created["pay_url"]
+    token = x_idempotency_key or uuid.uuid4().hex
+    public_url = f"https://pay.evpayservice.com/pay/{token}"
+
+    await link_set(token, fk_url, ttl_hours=PAY_LINK_TTL_HOURS)
+
+    resp = {
+        "public_url": public_url,
+        "token": token,
+        "payment_id": created["payment_id"],
+        "fk_url": fk_url,
+        "expires_at": (datetime.utcnow() + timedelta(hours=PAY_LINK_TTL_HOURS)).isoformat() + "Z",
+    }
+
+    if x_idempotency_key:
+        await idem_set(x_idempotency_key, resp)
+
+    return resp
 
 
 
