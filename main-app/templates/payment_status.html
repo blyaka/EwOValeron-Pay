@@ -25,6 +25,48 @@
 
 <main>
 
+    <section class="ps-filters">
+        <button class="f-icon" id="filtersReset" aria-label="Сбросить фильтры" title="Сбросить фильтры">
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M3 5h18l-6.5 7.5v5.75l-5 2.5V12.5L3 5z" />
+            </svg>
+        </button>
+
+        <label class="chip chip--toggle" data-chip="date">
+            <span class="chip__title">Дата</span>
+            <span class="chip__body">
+                <input type="date" id="fDateFrom" placeholder="с">
+                <input type="date" id="fDateTo" placeholder="по">
+            </span>
+        </label>
+
+        <!-- Сумма -->
+        <label class="chip chip--toggle" data-chip="amount">
+            <span class="chip__title">Сумма платежа</span>
+            <span class="chip__body">
+                <input type="number" id="fAmtMin" inputmode="numeric" placeholder="от">
+                <input type="number" id="fAmtMax" inputmode="numeric" placeholder="до">
+            </span>
+        </label>
+
+        <!-- Tag -->
+        <label class="chip chip--toggle" data-chip="tag">
+            <span class="chip__title">Tag</span>
+            <span class="chip__body">
+                <input type="text" id="fTag" placeholder="например: promo">
+            </span>
+        </label>
+
+        <label class="chip grow">
+            <input type="text" id="fOrder" placeholder="Точечный поиск по: Order ID">
+        </label>
+
+        <label class="chip grow">
+            <input type="text" id="fComment" placeholder="Поиск по: Комментарию">
+        </label>
+    </section>
+
+
     <section class="ps-wrap">
         <div class="ps-scroll">
             <table class="ps-table" id="paymentsTable">
@@ -62,7 +104,7 @@
         <a href="#" class="page-num">1</a>
         <a href="#" class="page-num active">2</a>
         <a href="#" class="page-num">3</a>
-        
+
         <button class="page-btn next" aria-label="Следующая">
             <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg"
                 style="transform: rotate(180deg);">
@@ -74,46 +116,154 @@
     </div>
 
     <script>
-        const data = [
-            {
-                date: "22.09.2025 | 13:41",
-                order: "#20252409-32",
-                comment: "Пакет 1000 кристаллов (@ivan)",
-                amount: 1000,
-                fee: 75,
-                payout: 925,
-                method: "СБП",
-                status: "ok",
-                intid: "73638261",
-                tag: "нет",
-                seller: "ник-нейм"
-            }
-        ];
-
-        // клонируем для 10 строк
-        const payments = Array.from({ length: 15 }, () => data[0]);
+        // ===== Demo-данные
+        const row = {
+            date: "22.09.2025 | 13:41",
+            order: "#20252409-32",
+            comment: "Пакет 1000 кристаллов (@ivan)",
+            amount: 1000,
+            fee: 75,
+            payout: 925,
+            method: "СБП",
+            status: "ok",
+            intid: "73638261",
+            tag: "promo",
+            seller: "nick"
+        };
+        const paymentsSrc = Array.from({ length: 15 }, (_, i) => ({
+            ...row,
+            order: `#2025${2409 + i}-${30 + (i % 60)}`,
+            amount: 500 + (i % 9) * 250,
+            payout: 500 + (i % 9) * 250 - 75,
+            date: `${String(10 + (i % 20)).padStart(2, "0")}.09.2025 | ${String(10 + (i % 10)).padStart(2, "0")}:${String(11 + (i % 47)).padStart(2, "0")}`,
+            tag: i % 3 ? "promo" : "нет",
+        }));
 
         const tbody = document.querySelector("#paymentsTable tbody");
+        const $ = (id) => document.getElementById(id);
 
-        payments.forEach((p, i) => {
-            const tr = document.createElement("tr");
+        // ===== helpers
+        function parseRuDate(s) {
+            // "22.09.2025 | 13:41" -> Date
+            const [dpart, tpart] = s.split("|").map(x => x.trim());
+            const [dd, mm, yyyy] = dpart.split(".").map(Number);
+            const [HH, MM] = (tpart || "00:00").split(":").map(Number);
+            return new Date(yyyy, mm - 1, dd, HH, MM, 0, 0);
+        }
+        function hasVal(v) { return v !== undefined && v !== null && String(v).trim() !== ""; }
 
-            tr.innerHTML = `
-      <td>${p.date}</td>
-      <td><span class="ps-link">${p.order}</span></td>
-      <td class="clip" title="${p.comment}">${p.comment}</td>
-      <td class="num">${p.amount}</td>
-      <td class="num">${p.fee}</td>
-      <td class="num">${p.payout}</td>
-      <td>${p.method}</td>
-      <td class="status"><span class="chk ok" aria-label="ok"></span></td>
-      <td class="mono">${p.intid}</td>
-      <td class="muted">${p.tag}</td>
-      <td>${p.seller}</td>
-    `;
-            tbody.appendChild(tr);
+        // ===== рендер
+        function render(rows) {
+            tbody.innerHTML = "";
+            rows.forEach(p => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+        <td>${p.date}</td>
+        <td><span class="ps-link">${p.order}</span></td>
+        <td class="clip" title="${p.comment}">${p.comment}</td>
+        <td class="num">${p.amount}</td>
+        <td class="num">${p.fee}</td>
+        <td class="num">${p.payout}</td>
+        <td>${p.method}</td>
+        <td class="status"><span class="chk ok" aria-label="ok"></span></td>
+        <td class="mono">${p.intid}</td>
+        <td class="muted">${p.tag}</td>
+        <td>${p.seller}</td>`;
+                tbody.appendChild(tr);
+            });
+            updateIconState();
+        }
+
+        // ===== фильтрация
+        function collectFilters() {
+            return {
+                from: hasVal($("fDateFrom").value) ? new Date($("fDateFrom").value + "T00:00:00") : null,
+                to: hasVal($("fDateTo").value) ? new Date($("fDateTo").value + "T23:59:59") : null,
+                min: hasVal($("fAmtMin").value) ? Number($("fAmtMin").value) : null,
+                max: hasVal($("fAmtMax").value) ? Number($("fAmtMax").value) : null,
+                tag: $("fTag").value.trim().toLowerCase(),
+                order: $("fOrder").value.trim().toLowerCase(),
+                comment: $("fComment").value.trim().toLowerCase(),
+            };
+        }
+
+        function applyFilters() {
+            const f = collectFilters();
+            const out = paymentsSrc.filter(p => {
+                const d = parseRuDate(p.date);
+                if (f.from && d < f.from) return false;
+                if (f.to && d > f.to) return false;
+                if (f.min !== null && Number(p.amount) < f.min) return false;
+                if (f.max !== null && Number(p.amount) > f.max) return false;
+                if (f.tag && !String(p.tag).toLowerCase().includes(f.tag)) return false;
+                if (f.order && !String(p.order).toLowerCase().includes(f.order)) return false;
+                if (f.comment && !String(p.comment).toLowerCase().includes(f.comment)) return false;
+                return true;
+            });
+            render(out);
+        }
+
+        function resetFilters() {
+            ["fDateFrom", "fDateTo", "fAmtMin", "fAmtMax", "fTag", "fOrder", "fComment"]
+                .forEach(id => { $(id).value = ""; });
+            render(paymentsSrc);
+        }
+
+        function updateIconState() {
+            const f = collectFilters();
+            const active =
+                f.from || f.to || f.min !== null || f.max !== null ||
+                f.tag || f.order || f.comment;
+            document.getElementById("filtersReset").classList.toggle("active", !!active);
+        }
+
+        // события
+        ["fDateFrom", "fDateTo", "fAmtMin", "fAmtMax", "fTag", "fOrder", "fComment"].forEach(id => {
+            $(id).addEventListener("input", applyFilters);
+            $(id).addEventListener("change", applyFilters);
         });
+        document.getElementById("filtersReset").addEventListener("click", resetFilters);
+
+        // старт
+        render(paymentsSrc);
     </script>
+
+
+
+    <script>
+        // --- аккордеоны для 3 чипов ---
+        function toggleChip(el, forceOpen = null) {
+            const want = (forceOpen === null) ? !el.classList.contains('open') : !!forceOpen;
+            el.classList.toggle('open', want);
+            if (want) {
+                const inp = el.querySelector('.chip__body input');
+                if (inp) setTimeout(() => inp.focus(), 0);
+            }
+        }
+        // открыть чип, если внутри уже есть значения
+        function hydrateChipsByValues() {
+            document.querySelectorAll('.chip--toggle').forEach(chip => {
+                const hasValue = [...chip.querySelectorAll('input')].some(i => i.value && String(i.value).trim() !== '');
+                chip.classList.toggle('open', hasValue);
+            });
+        }
+        // клики по чипу — открывают/закрывают, клики по инпутам не сворачивают
+        document.querySelectorAll('.chip--toggle').forEach(chip => {
+            chip.addEventListener('click', e => {
+                if (e.target.tagName === 'INPUT') return; // не сворачивать при наборе
+                toggleChip(chip);
+            });
+        });
+
+        // дернуть после первого render() и при каждом applyFilters()
+        const _renderOrig = render;
+        render = function (rows) { _renderOrig(rows); hydrateChipsByValues(); };
+
+        // начальное состояние
+        hydrateChipsByValues();
+    </script>
+
+
 
 </main>
 

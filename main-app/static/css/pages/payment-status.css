@@ -12,6 +12,153 @@
 }
 
 
+
+
+
+
+
+
+
+
+
+.ps-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 40px 18px;
+}
+
+.ps-filters .f-icon {
+  display: grid;
+  place-items: center;
+  width: 45px;
+  height: 45px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .02);
+  color: #cfd5e3;
+  cursor: pointer;
+  transition: box-shadow .2s ease, color .2s ease, border-color .2s ease, background .2s ease;
+}
+
+.ps-filters .f-icon:hover {
+  color: #fff;
+}
+
+.ps-filters .f-icon.active {
+  color: #fff;
+  border-color: rgba(168, 85, 247, .6);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, .25), var(--glow);
+  background: radial-gradient(120% 120% at 50% 0%, rgba(168, 85, 247, .12), rgba(34, 211, 238, .06) 60%, transparent 100%);
+}
+
+.ps-filters .chip {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .02);
+  color: #e9edf9;
+  white-space: nowrap;
+}
+
+.ps-filters .chip.grow {
+  /* flex: 1 1 260px; */
+  min-width: 260px;
+}
+
+.ps-filters .chip>span {
+  opacity: .8;
+  font-size: .95rem;
+}
+
+.ps-filters .chip input[type="text"],
+.ps-filters .chip input[type="number"],
+.ps-filters .chip input[type="date"] {
+  appearance: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  padding: 6px 8px;
+  border-radius: 8px;
+  min-width: 110px;
+  width: 100%;
+}
+
+.ps-filters .chip input::placeholder {
+  color: #9aa3b2;
+  opacity: .7;
+}
+
+.ps-filters .chip input[type="number"] {
+  width: 88px;
+  text-align: left;
+}
+
+.ps-filters .chip input[type="date"] {
+  width: 138px;
+}
+
+/* Чипы-аккордеоны */
+.ps-filters .chip--toggle {
+  cursor: pointer;
+}
+
+.ps-filters .chip__title {
+  pointer-events: none;
+  opacity: .9;
+  font-size: .95rem;
+}
+
+.ps-filters .chip__body {
+  display: inline-flex;
+  gap: 8px;
+  overflow: hidden;
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(4px);
+  transition: max-width .25s ease, opacity .2s ease, transform .25s ease;
+  pointer-events: none;
+}
+
+.ps-filters .chip.open .chip__body {
+  max-width: 480px;
+  margin-left: 10px;
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* Узкие инпуты внутри свёрнутых чипов */
+.ps-filters .chip__body input[type="number"] {
+  width: 96px;
+}
+
+.ps-filters .chip__body input[type="date"] {
+  width: 150px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .ps-wrap {
   margin: 24px auto 28px;
   padding: 0 40px;
