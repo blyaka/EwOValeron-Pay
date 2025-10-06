@@ -17,7 +17,7 @@ spec:
         env:
         - { name: DATABASE_URL, value: "postgresql://postgres:postgres@pg.evpay.svc.cluster.local:5432/ev_pay" }
         - { name: REDIS_URL,     value: "redis://redis.evpay.svc.cluster.local:6379/1" }
-        - { name: RABBIT_URL,    value: "amqp://user:pass@rabbit.evpay.svc.cluster.local:5672//" }
+        - { name: RABBIT_URL,    value: "amqp://user:pass@rabbit.evpay.svc.cluster.local:5672/%2F" }
         - { name: FREKASSA_MERCHANT_ID, value: "66169" }
         - { name: FREKASSA_API_KEY, value: "455116e47360f7f9442b95cad91d88db" }
         - { name: FREKASSA_SECRET_KEY, value: "wV.%os.K!gSg5bc" }

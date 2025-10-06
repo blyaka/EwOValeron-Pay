@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "allauth.account",
     'pages',
     'catalog',
+    'payments',
 ]
 
 

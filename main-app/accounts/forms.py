@@ -1,8 +1,9 @@
-
+# accounts/forms.py  (где лежит твой PromoSignupForm)
 from django import forms
 from django.db import transaction
 from django.utils import timezone
 from .models import PromoCode
+from .utils import alloc_prefix_for
 
 class PromoSignupForm(forms.Form):
     promo_code = forms.CharField(label='Промокод', max_length=32)
@@ -29,3 +30,6 @@ class PromoSignupForm(forms.Form):
             pc.used_by = user
             pc.used_at = timezone.now()
             pc.save(update_fields=['used','used_by','used_at'])
+
+            if not hasattr(user, "seller"):
+                alloc_prefix_for(user)

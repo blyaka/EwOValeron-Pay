@@ -18,3 +18,15 @@ class PromoCode(models.Model):
 
     def __str__(self):
         return f"{self.code} ({'OK' if self.is_active() else 'INVALID'})"
+
+
+
+class SellerProfile(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="seller")
+    order_prefix = models.CharField(max_length=3, unique=True, db_index=True)
+    commission_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0
+    )
+
+    def __str__(self):
+        return f"{self.user.username} [{self.order_prefix}] {self.commission_pct}%"

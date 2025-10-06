@@ -37,13 +37,21 @@
             <nav class="menu">
                 <a href="{% url 'home' %}" aria-current="page">Главная</a>
                 <a href="{% url 'catalog' %}" aria-current="page">Каталог товаров</a>
-                <a href="{% url 'account_login' %}" class="btn">Личный кабинет</a>
+                {% if user.is_authenticated %}
+                <a href="{% url 'home-lk' %}" class="btn">Личный кабинет</a>
+                {% else %}
+                <a href="{% url 'account_login' %}" class="btn">Войти</a>
+                {% endif %}
             </nav>
 
             <div class="mobile-menu" id="mobileMenu" hidden>
                 <a href="{% url 'home' %}" class="mm-link">Главная</a>
                 <a href="{% url 'catalog' %}" class="mm-link">Каталог товаров</a>
-                <a href="{% url 'account_login' %}" class="mm-link btn">Личный кабинет</a>
+                {% if user.is_authenticated %}
+                <a href="{% url 'home-lk' %}" class="mm-link btn">Личный кабинет</a>
+                {% else %}
+                <a href="{% url 'account_login' %}" class="mm-link btn">Войти</a>
+                {% endif %}
             </div>
         </div>
     </header>

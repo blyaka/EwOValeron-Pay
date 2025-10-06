@@ -139,6 +139,53 @@ async def create_order(order: OrderCreate):
     logger.error("FK error %s: %s", r.status_code, r.text[:800])
     raise HTTPException(status_code=502, detail=f"FK error {r.status_code}: {r.text[:300]}")
 
+
+# ============ 1.1) Создание универсальной ссылки (SCI) ============
+class SCILinkRequest(BaseModel):
+    amount: float
+    order_id: Optional[str] = None
+    currency: str = "RUB"
+    description: Optional[str] = None
+    us_tag: Optional[str] = None
+    us_comment: Optional[str] = None
+
+@app.post("/create_sci_link")
+async def create_sci_link(req: SCILinkRequest):
+    if not MERCHANT_ID:
+        raise HTTPException(status_code=500, detail="MERCHANT_ID not configured")
+    if not SECRET2:
+        raise HTTPException(status_code=500, detail="SECRET2 not configured")
+
+    # генерим order_id, если не передали
+    order_id = req.order_id or f"sci-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
+    amount_str = f"{req.amount:.2f}"
+
+    # подпись: md5(MERCHANT_ID:AMOUNT:SECRET2:MERCHANT_ORDER_ID)
+    sign = sci_sign_md5(MERCHANT_ID, amount_str, SECRET2, order_id)
+
+    params = {
+        "m": MERCHANT_ID,
+        "oa": amount_str,
+        "o": order_id,
+        "s": sign,
+        "currency": req.currency,
+    }
+    if req.description:
+        params["us_desc"] = req.description
+    if req.us_tag:
+        params["us_tag"] = req.us_tag
+    if req.us_comment:
+        params["us_comment"] = req.us_comment
+
+    query = "&".join(f"{k}={httpx.QueryParams({k:v})[k]}" for k, v in params.items())
+    pay_url = f"https://pay.freekassa.ru/?{query}"
+
+    logger.info("SCI link created: %s %s RUB", order_id, amount_str)
+    return {"pay_url": pay_url, "order_id": order_id}
+
+
+
+
 # ============ 2) Вебхук (универсальный: SCI и API v1) ============
 async def _publish_payment_event(event: dict):
     try:

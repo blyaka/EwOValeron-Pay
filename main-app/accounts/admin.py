@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.shortcuts import redirect
 from datetime import timedelta
 import secrets, string
-from .models import PromoCode
+from .models import PromoCode, SellerProfile
 
 def _new_code(n=10):
     alphabet = string.ascii_uppercase + string.digits
@@ -77,3 +77,14 @@ class PromoCodeAdmin(admin.ModelAdmin):
         obj = self._create_codes(1)[0]
         self.message_user(request, f"Создан промокод: {obj.code}")
     generate_one.short_description = "Создать 1 промокод (1 час)"
+
+
+
+
+
+@admin.register(SellerProfile)
+class SellerProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "order_prefix", "commission_pct")
+    search_fields = ("user__username", "order_prefix")
+    list_editable = ("commission_pct",)
+    ordering = ("user__username",)

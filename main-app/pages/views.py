@@ -28,10 +28,10 @@ def test_payapi(request):
 
 
 def home_lk(request):
-    return render(request, 'home_lk.html')
+    return render(request, 'seller/home_lk.html')
 
 def payment_links(request):
-    return render(request, 'payment_links.html')
+    return render(request, 'seller/payment_links.html')
 
 def payment_status(request):
-    return render(request, 'payment_status.html')
+    return render(request, 'seller/payment_status.html')
