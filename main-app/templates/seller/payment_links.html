@@ -104,6 +104,32 @@
 
 
 
+    <div class="pagination">
+        <button class="page-btn prev" aria-label="Предыдущая">
+            <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
+                    fill="white" />
+            </svg>
+        </button>
+
+        <a href="#" class="page-num">1</a>
+        <a href="#" class="page-num active">2</a>
+        <a href="#" class="page-num">3</a>
+
+        <button class="page-btn next" aria-label="Следующая">
+            <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg"
+                style="transform: rotate(180deg);">
+                <path
+                    d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
+                    fill="white" />
+            </svg>
+        </button>
+    </div>
+
+
+
+
     <!-- Модалка генерации -->
     <div class="modal" id="genModal" aria-hidden="true">
         <div class="modal__bg" id="genClose"></div>
@@ -111,8 +137,10 @@
             <h2>Генерация ссылки</h2>
 
             <div class="form-row">
-                <label>Order ID</label>
-                <div class="order-id" id="orderId">#2025XXXX</div>
+                <div class="order-id-container">
+                    <label class="order-label">Order ID:</label>
+                    <div class="order-id" id="orderId">#2025XXXX</div>
+                </div>
                 <p class="hint">Запиши этот ID — он нужен для отслеживания платежа.</p>
             </div>
 
@@ -128,6 +156,24 @@
                     <input type="number" id="expM" min="0" placeholder="минуты">
                 </div>
                 <p class="hint" id="timeHint">Ссылка активна: 0д 0ч 0м</p>
+            </div>
+
+            <div class="form-row">
+                <label for="payMethod">Способ оплаты</label>
+                <div class="pm-select" id="pm">
+                    <input type="hidden" id="payMethod" value="sbp">
+                    <button type="button" class="pm-control" id="pmCtrl" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="pm-value" id="pmValue">СБП</span>
+                        <svg class="pm-caret" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="currentColor" d="M7 10l5 5 5-5z" />
+                        </svg>
+                    </button>
+                    <div class="pm-menu" id="pmMenu" role="listbox">
+                        <div class="pm-item" data-value="sbp" aria-selected="true">СБП</div>
+                        <div class="pm-item" data-value="card">Карта</div>
+                        <div class="pm-item" data-value="sberpay">СберПэй</div>
+                    </div>
+                </div>
             </div>
 
             <div class="form-row">
@@ -168,12 +214,69 @@
             <button class="btn" id="genBtn">Сгенерировать</button>
         </div>
     </div>
-
-
 </main>
 
 
 
+<!-- Скрипт выпадающего списка -->
+<script>
+    (() => {
+        const pm = document.getElementById('pm');
+        const ctrl = document.getElementById('pmCtrl');
+        const menu = document.getElementById('pmMenu');
+        const valEl = document.getElementById('pmValue');
+        const hidden = document.getElementById('payMethod');
+
+        function openPM() {
+            pm.classList.add('open');
+            ctrl.setAttribute('aria-expanded', 'true');
+            // авто-позиция: если снизу мало места — откроем вверх
+            const r = ctrl.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - r.bottom;
+            const spaceAbove = r.top;
+            if (spaceBelow < 220 && spaceAbove > spaceBelow) {
+                menu.style.top = 'auto'; menu.style.bottom = '100%'; menu.style.transform = 'translateY(-6px)';
+                menu.style.maxHeight = Math.max(120, Math.floor(spaceAbove - 20)) + 'px';
+            } else {
+                menu.style.bottom = 'auto'; menu.style.top = '100%'; menu.style.transform = 'translateY(6px)';
+                menu.style.maxHeight = Math.max(120, Math.floor(spaceBelow - 20)) + 'px';
+            }
+        }
+        function closePM() {
+            pm.classList.remove('open');
+            ctrl.setAttribute('aria-expanded', 'false');
+        }
+        function setPM(value, text) {
+            hidden.value = value;
+            valEl.textContent = text;
+            [...menu.children].forEach(i => i.setAttribute('aria-selected', i.dataset.value === value ? 'true' : 'false'));
+            closePM();
+        }
+
+        ctrl.addEventListener('click', (e) => { e.stopPropagation(); pm.classList.contains('open') ? closePM() : openPM(); });
+        menu.addEventListener('click', (e) => {
+            const item = e.target.closest('.pm-item'); if (!item) return;
+            setPM(item.dataset.value, item.textContent.trim());
+        });
+        document.addEventListener('click', (e) => { if (!e.target.closest('#pm')) closePM(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePM(); });
+
+        // колесо/свайп не отдаём за пределы
+        menu.addEventListener('wheel', (e) => e.stopPropagation(), { passive: false });
+        menu.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: false });
+
+        // дефолт: СБП
+        setPM('sbp', 'СБП');
+    })();
+</script>
+
+
+
+
+
+
+
+<!-- Скрипт открытия модалки и заполенения таблицы -->
 <script>
     const modal = document.getElementById('genModal');
     const openBtn = document.querySelector('.ps-filters a.chip');
@@ -262,6 +365,9 @@
 
 
 
+
+
+<!-- Скрипт для тегов -->
 <script>
     (() => {
         const el = id => document.getElementById(id);

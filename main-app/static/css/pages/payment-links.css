@@ -77,10 +77,20 @@ body.modal-open {
     gap: 8px;
 }
 
+.order-id-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+}
+
+.order-label {
+    margin: 0 !important;
+}
 .order-id {
     font-size: 1.2rem;
     font-weight: 600;
-    color: #a855f7;
+    color: #ff2a4f;
     margin-bottom: 4px;
 }
 
@@ -107,6 +117,98 @@ body.modal-open {
 .btn:hover {
     opacity: .9;
 }
+
+
+.pm-select {
+    position: relative
+}
+
+.pm-control {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .03);
+    color: #fff;
+    cursor: pointer;
+    outline: none;
+}
+
+.pm-control:focus {
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 50%, white 0%)
+}
+
+.pm-caret {
+    transition: transform .18s ease;
+    opacity: .8
+}
+
+.pm-select.open .pm-caret {
+    transform: rotate(180deg)
+}
+
+.pm-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    transform: translateY(6px);
+    background: #0f1016;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--glow);
+    padding: 6px;
+    z-index: 30;
+    display: none;
+    max-height: min(240px, 40vh);
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.pm-select.open .pm-menu {
+    display: block
+}
+
+.pm-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pm-item[aria-selected="true"] {
+    background: var(--accent);
+    border: 1px solid rgba(168, 85, 247, .25)
+}
+
+.pm-item:hover {
+    background: #141826
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
