@@ -407,23 +407,27 @@ async def _publish_payment_event(event: dict):
 
 @app.post("/webhook/", response_class=PlainTextResponse)
 async def webhook(request: Request):
-    ctype = request.headers.get("content-type", "")
+    ctype = (request.headers.get("content-type") or "").lower()
     if "application/json" in ctype:
-        data = await request.json()
-        if not isinstance(data, dict):
+        payload = await request.json()
+        if not isinstance(payload, dict):
             raise HTTPException(400, "Invalid JSON")
     else:
         form = await request.form()
-        data = dict(form)
-        data = {k.lower(): v for k, v in data.items()}
+        payload = dict(form)
 
-    if ("MERCHANT_ID" in data) and ("MERCHANT_ORDER_ID" in data) and ("SIGN" in data):
+    # нормализация ключей
+    d = { (k.lower() if isinstance(k, str) else k): v for k, v in payload.items() }
+    raw = payload
+
+    # ---------- SCI ветка ----------
+    if ("merchant_id" in d) and ("merchant_order_id" in d) and ("sign" in d):
         if not SECRET2:
             raise HTTPException(500, "SECRET2 not configured")
-        merchant_id = str(data["MERCHANT_ID"])
-        amount      = str(data["AMOUNT"])
-        order_id    = str(data["MERCHANT_ORDER_ID"])
-        got_sign    = str(data["SIGN"])
+        merchant_id = str(d["merchant_id"])
+        amount      = str(d["amount"])
+        order_id    = str(d["merchant_order_id"])
+        got_sign    = str(d["sign"])
 
         must = sci_sign_md5(merchant_id, amount, SECRET2, order_id)
         if not _eq(got_sign, must):
@@ -434,28 +438,28 @@ async def webhook(request: Request):
             "schema":   "sci",
             "order_id": order_id,
             "amount":   amount,
-            "currency": data.get("currency") or data.get("CUR") or data.get("CUR_ID"),
+            "currency": d.get("currency") or d.get("cur") or d.get("cur_id"),
             "status":   "success",
-            "raw":      data,
+            "raw":      raw,
         }
         await _publish_payment_event(event)
         return PlainTextResponse("YES")
 
+    # ---------- API v1 ветка ----------
     try:
-        merchant_payment_id = str(data.get("paymentid") or "")   # наш order_id (payment_id)
-        fk_order_id         = str(data.get("orderid") or "")     # внутренний ID ФК
-        amount              = str(data["amount"])
-        currency            = str(data["currency"])
-        got_sign            = str(data.get("sign") or data.get("signature") or "")
-        status              = str(data.get("status", "")) or "success"
-        intid               = str(data.get("intid") or "")
+        merchant_payment_id = str(d.get("paymentid") or "")
+        fk_order_id         = str(d.get("orderid") or "")
+        amount              = str(d["amount"])
+        currency            = str(d["currency"])
+        got_sign            = str(d.get("sign") or d.get("signature") or "")
+        status              = str(d.get("status") or "success")
+        intid               = str(d.get("intid") or "")
     except KeyError as e:
         raise HTTPException(status_code=400, detail=f"Missing field: {e}")
 
     if not SECRET_KEY:
         raise HTTPException(500, "API secret not configured")
 
-    # у разных интеграций подпись бывает на orderId или на paymentId — проверим оба варианта
     sig_ok = False
     if fk_order_id:
         must1 = api_v1_webhook_sign(fk_order_id, amount, currency, SECRET_KEY)
@@ -468,17 +472,18 @@ async def webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid signature (API v1)")
 
     event = {
-        "provider": "freekassa",
-        "schema":   "api_v1",
-        "order_id": merchant_payment_id or fk_order_id,
+        "provider":   "freekassa",
+        "schema":     "api_v1",
+        "order_id":   merchant_payment_id or fk_order_id,
         "fk_order_id": fk_order_id,
-        "amount":   amount,
-        "currency": currency,
-        "status":   status,
-        "intid":    intid,
-        "raw":      data,
+        "amount":     amount,
+        "currency":   currency,
+        "status":     status,
+        "intid":      intid,
+        "raw":        raw,
     }
     logger.info("WEBHOOK v1 event: %s", event)
-    event["event_key"] = f"fk:{intid or (merchant_payment_id+':' + amount)}"
+    event["event_key"] = f"fk:{intid or (merchant_payment_id + ':' + amount)}"
     await _publish_payment_event(event)
     return PlainTextResponse("OK")
+
