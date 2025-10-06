@@ -14,6 +14,6 @@ spec:
         env:
         - { name: DJANGO_DEBUG, value: "0" }
         - { name: SECRET_KEY, valueFrom: { secretKeyRef: { name: evpay-secrets, key: DJANGO_SECRET_KEY } } }
-        - { name: DATABASE_URL, value: "postgresql://postgres:postgres@pg-postgresql.evpay.svc.cluster.local:5432/ev_main" }
-        - { name: REDIS_URL,     value: "redis://redis-master.evpay.svc.cluster.local:6379/0" }
-        - { name: RABBIT_URL,    value: "amqp://user:pass@rmq-rabbitmq.evpay.svc.cluster.local:5672//" }
+        - { name: DATABASE_URL, value: "postgresql://postgres:postgres@pg.evpay.svc.cluster.local:5432/ev_main" }
+        - { name: REDIS_URL,     value: "redis://redis.evpay.svc.cluster.local:6379/0" }
+        - { name: RABBIT_URL,    value: "amqp://user:pass@rabbit.evpay.svc.cluster.local:5672/%2F" }

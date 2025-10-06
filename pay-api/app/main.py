@@ -20,9 +20,10 @@ RABBIT_URL = os.getenv("RABBIT_URL", "amqp://user:pass@rabbit:5672/")
 FREKASSA_BASE_URL = "https://api.fk.life/v1/"
 
 MERCHANT_ID = os.getenv("FREKASSA_MERCHANT_ID")
-API_KEY     = os.getenv("FREKASSA_API_KEY")       # API v1 key (для orders/create)
-SECRET_KEY  = os.getenv("FREKASSA_SECRET_KEY")    # API v1 secret (для подписи вебхука)
-SECRET2     = os.getenv("FREKASSA_SECRET2")       # SCI «секретное слово 2» (для SIGN)
+API_KEY     = os.getenv("FREKASSA_API_KEY")
+SECRET_KEY  = os.getenv("FREKASSA_SECRET_KEY")
+SECRET1     = os.getenv("FREKASSA_SECRET_KEY")
+SECRET2     = os.getenv("FREKASSA_SECRET2")
 
 app = FastAPI()
 logger = logging.getLogger("uvicorn.error")
@@ -144,6 +145,54 @@ async def create_order(order: OrderCreate):
 
 
 # ============ 1.1) Создание универсальной ссылки (SCI) ============
+
+def generate_sci_link(
+    merchant_id: str,
+    amount: float,
+    order_id: Optional[str],
+    currency: str,
+    secret1: str,
+    description: Optional[str] = None,
+    us_tag: Optional[str] = None,
+    us_comment: Optional[str] = None,
+    return_url: Optional[str] = None
+) -> Dict[str, str]:
+
+    if not merchant_id or not secret1:
+        raise ValueError("merchant_id и secret1 обязательны")
+
+    currency = currency.upper()
+    if currency == "RUB" and amount < 50:
+        raise ValueError("Минимальная сумма SCI — 50 RUB")
+
+    order_id = order_id or f"sci-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
+    amount_str = f"{amount:.2f}"
+
+    # SIGN = md5(m:amount:SECRET1[:currency]:order_id)
+    parts = [merchant_id, amount_str, secret1]
+    if currency:
+        parts.append(currency)
+    parts.append(order_id)
+    sign = hashlib.md5(":".join(parts).encode()).hexdigest()
+
+    params = {
+        "m": merchant_id,
+        "oa": amount_str,
+        "o": order_id,
+        "s": sign,
+        "currency": currency,
+    }
+    if description: params["us_desc"] = description
+    if us_tag:      params["us_tag"] = us_tag
+    if us_comment:  params["us_comment"] = us_comment
+    if return_url:  params["return_url"] = return_url
+
+    query = urlencode(params, safe="/:?#[]@!$&()*+,;=")
+    pay_url = f"https://pay.freekassa.ru/?{query}"
+
+    return {"pay_url": pay_url, "order_id": order_id, "sign": sign}
+
+
 class SCILinkRequest(BaseModel):
     amount: float
     order_id: Optional[str] = None
@@ -156,41 +205,28 @@ class SCILinkRequest(BaseModel):
 @app.post("/create_sci_link")
 async def create_sci_link(req: SCILinkRequest):
     if not MERCHANT_ID:
-        raise HTTPException(status_code=500, detail="MERCHANT_ID not configured")
-    if not SECRET2:
-        raise HTTPException(status_code=500, detail="SECRET2 not configured")
+        raise HTTPException(500, "MERCHANT_ID not configured")
+    if not os.getenv("FREKASSA_SECRET1"):
+        raise HTTPException(500, "FREKASSA_SECRET1 not configured")
 
-    # SCI у ФК — минимум 50 RUB. Можешь убрать это условие, но тогда будет их "Упс, ошибка".
-    if req.currency.upper() == "RUB" and req.amount < 50:
-        raise HTTPException(status_code=400, detail="SCI min amount is 50 RUB; use /create_order with i=42 for СБП <50")
+    try:
+        link = generate_sci_link(
+            merchant_id=str(MERCHANT_ID),
+            amount=req.amount,
+            order_id=req.order_id,
+            currency=req.currency,
+            secret1=os.getenv("FREKASSA_SECRET1"),
+            description=req.description,
+            us_tag=req.us_tag,
+            us_comment=req.us_comment,
+            return_url=req.return_url
+        )
+        logger.info("SCI link created: order_id=%s amount=%s", link["order_id"], req.amount)
+        return link
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
-    order_id = req.order_id or f"sci-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
-    amount_str = f"{req.amount:.2f}"  # важно: точка и 2 знака
-    sign = sci_sign_md5(str(MERCHANT_ID), amount_str, SECRET2, order_id)
 
-    # собираем только один раз, без ручной склейки
-    params = {
-        "m": MERCHANT_ID,
-        "oa": amount_str,
-        "o": order_id,
-        "s": sign,
-        "currency": req.currency.upper(),
-    }
-    # us_* вернутся в вебхуке как есть
-    if req.description:
-        params["us_desc"] = req.description
-    if req.us_tag:
-        params["us_tag"] = req.us_tag
-    if req.us_comment:
-        params["us_comment"] = req.us_comment
-    if req.return_url:
-        params["return_url"] = req.return_url  # если настроен возврат в ЛК
-
-    query = urlencode(params, doseq=False, safe="/:?#[]@!$&'()*+,;=")
-    pay_url = f"https://pay.freekassa.ru/?{query}"
-
-    logger.info("SCI link created: order_id=%s amount=%s sign=%s", order_id, amount_str, sign)
-    return {"pay_url": pay_url, "order_id": order_id}
 
 
 
@@ -212,7 +248,8 @@ async def _publish_payment_event(event: dict):
     except Exception as e:
         logger.error("RabbitMQ error: %s", e)
 
-@app.post("/webhook", response_class=PlainTextResponse)
+
+
 @app.post("/webhook/", response_class=PlainTextResponse)
 async def webhook(request: Request):
     ctype = request.headers.get("content-type", "")
