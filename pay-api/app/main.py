@@ -81,6 +81,14 @@ async def ping():
 
 
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"{request.method} {request.url} headers={dict(request.headers)}")
+    response = await call_next(request)
+    logger.info(f"Response {response.status_code}")
+    return response
+
+
 
 # ============ Идемпотентность ============
 
