@@ -1,0 +1,291 @@
+html.modal-open,
+body.modal-open {
+    overflow: hidden;
+    height: 100%;
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    overscroll-behavior: contain;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal__bg {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .75);
+    backdrop-filter: blur(6px);
+}
+
+.modal__box {
+    position: relative;
+    z-index: 2;
+    width: 460px;
+    background: #0b0b0d;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 32px;
+    box-shadow: var(--glow);
+    color: #fff;
+    overflow: auto;
+}
+
+.modal__box h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-weight: 400;
+}
+
+.form-row,
+.form-row-tag {
+    margin-bottom: 18px;
+}
+
+.form-row label {
+    display: block;
+    font-size: 0.95rem;
+    opacity: .9;
+    margin-bottom: 6px;
+}
+
+.form-row input,
+.form-row textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, .03);
+    color: #fff;
+    outline: none;
+}
+
+.form-row textarea {
+    resize: none;
+    height: 70px;
+}
+
+.inline {
+    display: flex;
+    gap: 8px;
+}
+
+.order-id {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #a855f7;
+    margin-bottom: 4px;
+}
+
+.hint {
+    color: #9aa3b2;
+    font-size: 0.85rem;
+    margin: 6px 0 0;
+}
+
+/* .btn {
+    display: inline-block;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    background: linear-gradient(90deg, var(--accent), var(--azure));
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: opacity .2s;
+} */
+
+.btn:hover {
+    opacity: .9;
+}
+
+
+
+
+
+
+
+
+.tg-select {
+    position: relative;
+    margin-top: 8px
+}
+
+.tg-control {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--stroke);
+    border-radius: 12px;
+    background: linear-gradient(180deg, #0f1014, #0b0b0d);
+    cursor: text;
+    min-height: 48px
+}
+
+.tg-control:focus-within {
+    outline: 2px solid color-mix(in oklab, var(--accent) 60%, white 0%);
+    outline-offset: 2px
+}
+
+.tg-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #171922;
+    border: 1px solid var(--stroke);
+    font-size: 13px;
+    white-space: nowrap
+}
+
+.tg-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%
+}
+
+.tg-x {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    padding: 0
+}
+
+.tg-more {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 4px 8px;
+    border: 1px dashed var(--stroke);
+    border-radius: 999px
+}
+
+.tg-input {
+    flex: 1;
+    min-width: 140px;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    outline: none;
+    padding: 6px 4px
+}
+
+.tg-placeholder {
+    color: #6c7280
+}
+
+.tg-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    transform: translateY(-6px);
+    background: #0f1016;
+    border: 1px solid var(--stroke);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 8px;
+    z-index: 20;
+    display: none;
+    max-height: min(320px, 50vh);
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.tg-menu.open {
+    display: block
+}
+
+.tg-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer
+}
+
+.tg-row:hover {
+    background: #141826
+}
+
+.tg-row input {
+    pointer-events: none
+}
+
+.tg-title {
+    flex: 1
+}
+
+.tg-hint {
+    font-size: 12px;
+    color: var(--muted)
+}
+
+.tg-hr {
+    height: 1px;
+    background: var(--stroke);
+    margin: 6px 0
+}
+
+.tg-create {
+    display: flex;
+    gap: 8px;
+    padding: 8px
+}
+
+.tg-create input {
+    flex: 1;
+    border: 1px solid var(--stroke);
+    border-radius: 10px;
+    background: #0c0e14;
+    color: var(--text);
+    padding: 8px
+}
+
+.tg-btn {
+    border: 1px solid var(--stroke);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: linear-gradient(180deg, var(--accent), var(--azure));
+    -webkit-background-clip: text;
+    color: transparent;
+    cursor: pointer
+}
+
+.tg-btn.tg-ghost {
+    border: 1px dashed var(--stroke);
+    background: #0c0f14;
+    color: var(--muted)
+}
+
+.tg-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    color: var(--muted);
+    font-size: 12px
+}
+
+.tg-kbd {
+    border: 1px solid var(--stroke);
+    border-bottom-width: 2px;
+    background: #0c0f14;
+    border-radius: 6px;
+    padding: 1px 6px
+}

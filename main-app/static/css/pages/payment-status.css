@@ -24,8 +24,14 @@
 .ps-filters {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
   padding: 0 40px 18px;
+}
+
+.ps-filters-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .ps-filters .f-icon {

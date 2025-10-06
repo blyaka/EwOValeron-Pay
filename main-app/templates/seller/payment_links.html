@@ -4,7 +4,8 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{% static 'css/pages/base_lk.css'%}">
-<link rel="stylesheet" href="{% static 'css/pages/home.css' %}">
+<link rel="stylesheet" href="{% static 'css/pages/payment-status.css'%}">
+<link rel="stylesheet" href="{% static 'css/pages/payment-links.css'%}">
 {% endblock styles %}
 
 {% block content %}
@@ -24,9 +25,387 @@
 
 <main>
 
-    
+
+
+    <section class="ps-filters">
+
+        <div class="ps-filters-container">
+            <button class="f-icon" id="filtersReset" aria-label="Сбросить фильтры" title="Сбросить фильтры">
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="currentColor" d="M3 5h18l-6.5 7.5v5.75l-5 2.5V12.5L3 5z" />
+                </svg>
+            </button>
+
+            <label class="chip chip--toggle" data-chip="date">
+                <span class="chip__title">Дата</span>
+                <span class="chip__body">
+                    <input type="date" id="fDateFrom" placeholder="с">
+                    <input type="date" id="fDateTo" placeholder="по">
+                </span>
+            </label>
+
+            <!-- Сумма -->
+            <label class="chip chip--toggle" data-chip="amount">
+                <span class="chip__title">Сумма платежа</span>
+                <span class="chip__body">
+                    <input type="number" id="fAmtMin" inputmode="numeric" placeholder="от">
+                    <input type="number" id="fAmtMax" inputmode="numeric" placeholder="до">
+                </span>
+            </label>
+
+            <!-- Tag -->
+            <label class="chip chip--toggle" data-chip="tag">
+                <span class="chip__title">Tag</span>
+                <span class="chip__body">
+                    <input type="text" id="fTag" placeholder="например: promo">
+                </span>
+            </label>
+
+            <label class="chip grow">
+                <input type="text" id="fOrder" placeholder="Точечный поиск по: Order ID">
+            </label>
+
+            <label class="chip grow">
+                <input type="text" id="fComment" placeholder="Поиск по: Комментарию">
+            </label>
+        </div>
+
+
+        <a href="" class="chip">Добавить ссылку</a>
+
+
+    </section>
+
+
+
+
+    <section class="ps-wrap">
+        <div class="ps-scroll">
+            <table class="ps-table" id="paymentsTable">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Order ID</th>
+                        <th>Сумма платежа&nbsp;<small>(₽)</small></th>
+                        <th>Комментарий</th>
+                        <th>Tag</th>
+                        <th>Срок ссылки</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- сюда закинет JS -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+
+
+
+    <!-- Модалка генерации -->
+    <div class="modal" id="genModal" aria-hidden="true">
+        <div class="modal__bg" id="genClose"></div>
+        <div class="modal__box">
+            <h2>Генерация ссылки</h2>
+
+            <div class="form-row">
+                <label>Order ID</label>
+                <div class="order-id" id="orderId">#2025XXXX</div>
+                <p class="hint">Запиши этот ID — он нужен для отслеживания платежа.</p>
+            </div>
+
+            <div class="form-row">
+                <label for="amount">Сумма заказа (₽)</label>
+                <input type="number" id="amount" placeholder="Введите сумму">
+            </div>
+
+            <div class="form-row">
+                <label>Время жизни ссылки</label>
+                <div class="inline">
+                    <input type="number" id="expH" min="0" placeholder="часы">
+                    <input type="number" id="expM" min="0" placeholder="минуты">
+                </div>
+                <p class="hint" id="timeHint">Ссылка активна: 0д 0ч 0м</p>
+            </div>
+
+            <div class="form-row">
+                <label for="comment">Комментарий</label>
+                <textarea id="comment" placeholder="Комментарий к ссылке"></textarea>
+            </div>
+
+            <div class="form-row-tag">
+                <label>Добавить тег</label>
+
+                <div class="tg-select" id="tg-root">
+                    <div class="tg-control" id="tg-control" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+                        <span id="tg-chips"></span>
+                        <input id="tg-input" class="tg-input" placeholder="Начни печатать для поиска…" />
+                    </div>
+
+                    <div class="tg-menu" id="tg-menu" role="listbox" aria-multiselectable="true">
+                        <div id="tg-list"></div>
+                        <div class="tg-hr"></div>
+                        <div class="tg-row" id="tg-create-row">
+                            <div class="tg-title">Создать тег «<span id="tg-create-name"></span>»</div>
+                            <div class="tg-hint">Enter</div>
+                        </div>
+                        <div class="tg-create" id="tg-inline-create" style="display:none">
+                            <input id="tg-new-name" placeholder="Название тега" />
+                            <button class="tg-btn" id="tg-add-btn">Добавить</button>
+                            <button class="tg-btn tg-ghost" id="tg-cancel-btn">Отмена</button>
+                        </div>
+                        <div class="tg-footer">
+                            <span>Навигация: ↑↓, выбрать: Space/Click, создать: Enter</span>
+                            <span class="tg-kbd">Esc</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <button class="btn" id="genBtn">Сгенерировать</button>
+        </div>
+    </div>
+
 
 </main>
+
+
+
+<script>
+    const modal = document.getElementById('genModal');
+    const openBtn = document.querySelector('.ps-filters a.chip');
+    const closeBtn = document.getElementById('genClose');
+    const orderEl = document.getElementById('orderId');
+    const expH = document.getElementById('expH');
+    const expM = document.getElementById('expM');
+    const hint = document.getElementById('timeHint');
+    const genBtn = document.getElementById('genBtn');
+    const tbody = document.querySelector('#paymentsTable tbody');
+
+    let __scrollY = 0;
+
+    function lockBody() {
+        __scrollY = window.scrollY || window.pageYOffset;
+        const sbw = window.innerWidth - document.documentElement.clientWidth; // ширина скроллбара
+        document.documentElement.classList.add('modal-open');
+        document.body.classList.add('modal-open');
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${__scrollY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        if (sbw > 0) document.body.style.paddingRight = sbw + 'px';
+    }
+
+    function unlockBody() {
+        document.documentElement.classList.remove('modal-open');
+        document.body.classList.remove('modal-open');
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.paddingRight = '';
+        window.scrollTo(0, __scrollY);
+    }
+
+    function openModal() {
+        modal.classList.add('show');
+        lockBody();
+        const id = '#2025' + Math.floor(100000 + Math.random() * 900000);
+        orderEl.textContent = id;
+    }
+    function closeModal() {
+        modal.classList.remove('show');
+        unlockBody();
+    }
+
+    openBtn.addEventListener('click', e => { e.preventDefault(); openModal(); });
+    closeBtn.addEventListener('click', closeModal);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    function formatTTL(h, m) {
+        let total = h * 60 + m;
+        let days = Math.floor(total / 1440);
+        let hours = Math.floor((total % 1440) / 60);
+        let mins = total % 60;
+        return `${days}д ${hours}ч ${mins}м`;
+    }
+    [expH, expM].forEach(el => el.addEventListener('input', () => {
+        const h = +expH.value || 0, m = +expM.value || 0;
+        hint.textContent = 'Ссылка активна: ' + formatTTL(h, m);
+    }));
+
+    // Тестовые 10 строк
+    const fakeRows = Array.from({ length: 10 }, (_, i) => ({
+        date: `0${i + 1}.10.2025`,
+        order: `#2025${Math.floor(100000 + i)}`,
+        amount: (500 + i * 50),
+        comment: `Тест заказ ${i + 1}`,
+        tag: i % 2 ? 'promo' : 'test',
+        ttl: '1д 2ч',
+        status: 'Активна'
+    }));
+    tbody.innerHTML = fakeRows.map(r => `
+<tr>
+  <td>${r.date}</td>
+  <td>${r.order}</td>
+  <td>${r.amount}</td>
+  <td>${r.comment}</td>
+  <td>${r.tag}</td>
+  <td>${r.ttl}</td>
+  <td>${r.status}</td>
+  <td><button class="btn small">Скопировать</button></td>
+</tr>`).join('');
+</script>
+
+
+
+<script>
+    (() => {
+        const el = id => document.getElementById(id);
+        const t = {
+            ctrl: el('tg-control'),
+            chips: el('tg-chips'),
+            input: el('tg-input'),
+            menu: el('tg-menu'),
+            list: el('tg-list'),
+            createRow: el('tg-create-row'),
+            createName: el('tg-create-name'),
+            inlineCreate: el('tg-inline-create'),
+            newName: el('tg-new-name'),
+            addBtn: el('tg-add-btn'),
+            cancelBtn: el('tg-cancel-btn')
+        };
+
+        const key = 'tags_v2';
+        const saved = JSON.parse(localStorage.getItem(key) || '{}');
+        let tags = saved.tags || [
+            { id: 'design', name: 'Design', color: '#22d3ee' },
+            { id: 'backend', name: 'Backend', color: '#a855f7' },
+            { id: 'frontend', name: 'Frontend', color: '#8b5cf6' },
+            { id: 'urgent', name: 'Urgent', color: '#ef4444' },
+            { id: 'low', name: 'Low Priority', color: '#10b981' },
+            { id: 'research', name: 'Research', color: '#f59e0b' }
+        ];
+        let chosen = new Set(saved.chosen || []);
+        let open = false, focusIndex = -1;
+
+        const save = () => localStorage.setItem(key, JSON.stringify({ tags, chosen: [...chosen] }));
+        const randColor = () => ['#a855f7', '#22d3ee', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#eab308'][Math.floor(Math.random() * 8)];
+        const slug = s => s.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+
+        const renderChips = () => {
+            t.chips.innerHTML = '';
+            const arr = tags.filter(x => chosen.has(x.id));
+            arr.slice(0, 3).forEach(x => {
+                const c = document.createElement('span');
+                c.className = 'tg-chip';
+                c.innerHTML = `<span class="tg-dot" style="background:${x.color}"></span>${x.name}
+                    <button class="tg-x">×</button>`;
+                c.querySelector('.tg-x').onclick = (e) => { e.stopPropagation(); chosen.delete(x.id); save(); draw(); };
+                t.chips.appendChild(c);
+            });
+            if (arr.length > 3) {
+                const m = document.createElement('span');
+                m.className = 'tg-more';
+                m.textContent = `+${arr.length - 3}`;
+                t.chips.appendChild(m);
+            }
+            if (!arr.length) {
+                const ph = document.createElement('span');
+                ph.className = 'tg-placeholder';
+                ph.textContent = 'Теги не выбраны';
+                t.chips.appendChild(ph);
+            }
+        };
+
+        const rowHtml = (x, q) => {
+            const mark = q ? x.name.replace(new RegExp(`(${q})`, 'i'), '<u>$1</u>') : x.name;
+            return `<div class="tg-row" data-id="${x.id}">
+                <input type="checkbox" ${chosen.has(x.id) ? 'checked' : ''}>
+                <span class="tg-dot" style="background:${x.color}"></span>
+                <div class="tg-title">${mark}</div>
+                </div>`;
+        };
+
+        const drawList = () => {
+            const q = t.input.value.trim();
+            const res = q ? tags.filter(x => x.name.toLowerCase().includes(q.toLowerCase())) : tags;
+            t.list.innerHTML = res.map(x => rowHtml(x, q)).join('') ||
+                `<div class="tg-row"><div class="tg-title" style="color:var(--muted)">Ничего не найдено</div></div>`;
+            [...t.list.querySelectorAll('.tg-row')].forEach((r, i) => { r.onclick = () => toggle(r.dataset.id); r.onmousemove = () => focusIndex = i; });
+            const canCreate = q.length >= 2 && !tags.some(x => x.name.toLowerCase() === q.toLowerCase());
+            t.createRow.style.display = canCreate ? 'flex' : 'none';
+            t.createName.textContent = q;
+        };
+
+        const draw = () => { renderChips(); if (open) drawList(); };
+        const toggle = id => { chosen.has(id) ? chosen.delete(id) : chosen.add(id); save(); draw(); };
+        const createTag = name => {
+            const id = slug(name) || ('tag-' + Math.random().toString(36).slice(2, 7));
+            if (tags.some(x => x.id === id) || tags.some(x => x.name.toLowerCase() === name.toLowerCase())) return;
+            const color = randColor();
+            tags.push({ id, name, color });
+            chosen.add(id);
+            save(); t.input.value = ''; draw();
+        };
+
+        const openMenu = () => {
+            open = true;
+            t.menu.classList.add('open');
+            t.ctrl.setAttribute('aria-expanded', 'true');
+            drawList();
+            requestAnimationFrame(adjustMenu);
+        };
+        const closeMenu = () => { open = false; t.menu.classList.remove('open'); t.ctrl.setAttribute('aria-expanded', 'false'); t.inlineCreate.style.display = 'none'; };
+
+        // === добавить где-нибудь рядом с объявлениями функций ===
+        function adjustMenu() {
+            // всегда открыть вверх
+            t.menu.style.top = 'auto';
+            t.menu.style.bottom = '100%';
+            t.menu.style.transform = 'translateY(-6px)';
+            // ограничим высоту и дадим скролл
+            const spaceAbove = t.ctrl.getBoundingClientRect().top;
+            // t.menu.style.maxHeight = Math.max(120, Math.floor(spaceAbove - 20)) + 'px';
+        }
+
+
+        // не отдаём прокрутку наружу
+        t.menu.addEventListener('wheel', e => e.stopPropagation(), { passive: false });
+        t.menu.addEventListener('touchmove', e => e.stopPropagation(), { passive: false });
+
+        // пересчёт при ресайзе, если меню открыто
+        window.addEventListener('resize', () => {
+            if (t.menu.classList.contains('open')) adjustMenu();
+        });
+
+
+        t.ctrl.addEventListener('click', () => { open ? t.input.focus() : (openMenu(), t.input.focus()); });
+        t.input.addEventListener('input', drawList);
+        t.input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const q = t.input.value.trim();
+                const exact = q && tags.some(x => x.name.toLowerCase() === q.toLowerCase());
+                if (q && !exact) { createTag(q); return; }
+                const rows = [...t.list.children];
+                if (focusIndex >= 0 && rows[focusIndex]) rows[focusIndex].click();
+            }
+            if (e.key === 'Escape') { closeMenu(); }
+        });
+
+        t.createRow.addEventListener('click', () => { t.inlineCreate.style.display = 'flex'; t.newName.value = t.input.value.trim(); t.newName.focus(); });
+        t.addBtn.addEventListener('click', () => { const v = t.newName.value.trim(); if (v.length >= 2) { createTag(v); t.inlineCreate.style.display = 'none'; } });
+        t.cancelBtn.addEventListener('click', () => t.inlineCreate.style.display = 'none');
+        document.addEventListener('click', e => { if (!e.target.closest('#tg-root')) closeMenu(); });
+        draw();
+    })();
+</script>
+
+
 
 
 {% endblock content %}
