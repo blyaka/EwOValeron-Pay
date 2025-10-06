@@ -28,7 +28,7 @@ SECRET2     = os.getenv("FREKASSA_SECRET2")
 app = FastAPI()
 logger = logging.getLogger("uvicorn.error")
 
-# --- отрезаем шум от /health в access-логе ---
+
 class _DropHealth(logging.Filter):
     def filter(self, record):
         try:
@@ -39,12 +39,13 @@ class _DropHealth(logging.Filter):
 
 logging.getLogger("uvicorn.access").addFilter(_DropHealth())
 
+
+
 # --- утилиты подписи ---
 def _eq(a: str, b: str) -> bool:
     return hmac.compare_digest(a.lower(), b.lower())
 
 def fk_hmac_signature(data: Dict[str, Any], api_key: str) -> str:
-    # подпись для /orders/create: SHA256 от values, отсортированных по ключам, через "|"
     items = dict(sorted(data.items(), key=lambda x: x[0]))
     msg = "|".join(str(v) for v in items.values())
     return hmac.new(api_key.encode(), msg.encode(), hashlib.sha256).hexdigest()
@@ -54,8 +55,8 @@ def api_v1_webhook_sign(order_id: str, amount: str, currency: str, secret: str) 
     return hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
 
 def sci_sign_md5(merchant_id: str, amount: str, secret2: str, order_id: str) -> str:
-    # SIGN = md5(MERCHANT_ID:AMOUNT:SECRET2:MERCHANT_ORDER_ID)
     return hashlib.md5(f"{merchant_id}:{amount}:{secret2}:{order_id}".encode()).hexdigest()
+
 
 # --- ping/health ---
 @app.get("/")
@@ -70,15 +71,7 @@ def health():
 async def ping():
     return {"pong": True}
 
-# --- тест отправки в RMQ ---
-@app.post("/send")
-async def send(msg: str):
-    conn = await aio_pika.connect_robust(RABBIT_URL)
-    ch = await conn.channel()
-    q = await ch.declare_queue("test", durable=True)
-    await ch.default_exchange.publish(aio_pika.Message(body=msg.encode()), routing_key=q.name)
-    await conn.close()
-    return {"sent": msg}
+
 
 # ============ 1) Создание заказа ============
 class OrderCreate(BaseModel):
@@ -96,7 +89,6 @@ async def create_order(order: OrderCreate):
     if not API_KEY:
         raise HTTPException(status_code=500, detail="API_KEY not configured")
 
-    # уникальнее, чтобы не коллизить на двух репликах
     payment_id = order.payment_id or f"ord-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
     nonce = int(time.time() * 1000)
 
@@ -116,7 +108,6 @@ async def create_order(order: OrderCreate):
     signature = fk_hmac_signature(base_payload, API_KEY)
     payload = {**base_payload, "signature": signature}
 
-    # не логируем персональные данные целиком
     logger.info("FK create: payment_id=%s amount=%s", payment_id, base_payload["amount"])
 
     try:
@@ -168,7 +159,6 @@ def generate_sci_link(
     order_id = order_id or f"sci-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
     amount_str = f"{amount:.2f}"
 
-    # SIGN = md5(m:amount:SECRET1[:currency]:order_id)
     parts = [merchant_id, amount_str, secret1]
     if currency:
         parts.append(currency)
@@ -200,14 +190,14 @@ class SCILinkRequest(BaseModel):
     description: Optional[str] = None
     us_tag: Optional[str] = None
     us_comment: Optional[str] = None
-    return_url: Optional[str] = None  # опционально
+    return_url: Optional[str] = None
 
 @app.post("/create_sci_link")
 async def create_sci_link(req: SCILinkRequest):
     if not MERCHANT_ID:
         raise HTTPException(500, "MERCHANT_ID not configured")
-    if not os.getenv("FREKASSA_SECRET1"):
-        raise HTTPException(500, "FREKASSA_SECRET1 not configured")
+    if not os.getenv("FREKASSA_SECRET_KEY"):
+        raise HTTPException(500, "FREKASSA_SECRET_KEY not configured")
 
     try:
         link = generate_sci_link(
@@ -215,7 +205,7 @@ async def create_sci_link(req: SCILinkRequest):
             amount=req.amount,
             order_id=req.order_id,
             currency=req.currency,
-            secret1=os.getenv("FREKASSA_SECRET1"),
+            secret1=os.getenv("FREKASSA_SECRET_KEY"),
             description=req.description,
             us_tag=req.us_tag,
             us_comment=req.us_comment,
@@ -231,7 +221,7 @@ async def create_sci_link(req: SCILinkRequest):
 
 
 
-# ============ 2) Вебхук (универсальный: SCI и API v1) ============
+# ============ 2) Вебхук  ============
 async def _publish_payment_event(event: dict):
     try:
         conn = await aio_pika.connect_robust(RABBIT_URL)
@@ -261,7 +251,6 @@ async def webhook(request: Request):
         form = await request.form()
         data = dict(form)
 
-    # Ветка SCI (кнопка «Уведомить» в ЛК): MERCHANT_ID/AMOUNT/MERCHANT_ORDER_ID/SIGN
     if ("MERCHANT_ID" in data) and ("MERCHANT_ORDER_ID" in data) and ("SIGN" in data):
         if not SECRET2:
             raise HTTPException(500, "SECRET2 not configured")
@@ -284,10 +273,8 @@ async def webhook(request: Request):
             "raw":      data,
         }
         await _publish_payment_event(event)
-        return PlainTextResponse("YES")  # SCI ожидает "YES"
+        return PlainTextResponse("YES")
 
-    # Ветка API v1: orderId/amount/currency/sign/status
-    # Если пришло что-то иное — валидируем по API v1
     try:
         order_id = str(data["orderId"])
         amount   = str(data["amount"])
