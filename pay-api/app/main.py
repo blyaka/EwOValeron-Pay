@@ -18,8 +18,14 @@ from urllib.parse import urlencode, quote
 import asyncio
 from datetime import datetime, timedelta
 
+import redis.asyncio as redis
+
 # --- конфиг из окружения ---
 RABBIT_URL = os.getenv("RABBIT_URL", "amqp://user:pass@rabbit:5672/")
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/1")
+redis_cli = redis.from_url(REDIS_URL, decode_responses=True)
+
+
 FREKASSA_BASE_URL = "https://api.fk.life/v1/"
 
 MERCHANT_ID = os.getenv("FREKASSA_MERCHANT_ID")
@@ -205,23 +211,19 @@ _link_store: dict[str, dict] = {}  # token -> {"fk_url": str, "expires_at": date
 
 
 async def link_get(token: str) -> Optional[Dict[str, Any]]:
-    async with _link_lock:
-        rec = _link_store.get(token)
-        if not rec:
-            return None
-        # если ссылка протухла — удаляем и возвращаем None
-        if rec["expires_at"] < datetime.utcnow():
-            _link_store.pop(token, None)
-            return None
-        return rec
+    # храним как JSON
+    raw = await redis_cli.get(f"paylink:{token}")
+    if not raw:
+        return None
+    return json.loads(raw)
 
 
 async def link_set(token: str, fk_url: str, ttl_hours: int = PAY_LINK_TTL_HOURS):
-    async with _link_lock:
-        _link_store[token] = {
-            "fk_url": fk_url,
-            "expires_at": datetime.utcnow() + timedelta(hours=ttl_hours),
-        }
+    rec = {
+        "fk_url": fk_url,
+        "expires_at": (datetime.utcnow() + timedelta(hours=ttl_hours)).isoformat()
+    }
+    await redis_cli.setex(f"paylink:{token}", ttl_hours * 3600, json.dumps(rec, ensure_ascii=False))
 
 
 @app.get("/pay/{token}")
@@ -404,7 +406,7 @@ async def _publish_payment_event(event: dict):
         logger.error("RabbitMQ error: %s", e)
 
 
-
+@app.post("/webhook", response_class=PlainTextResponse)
 @app.post("/webhook/", response_class=PlainTextResponse)
 async def webhook(request: Request):
     ctype = (request.headers.get("content-type") or "").lower()
