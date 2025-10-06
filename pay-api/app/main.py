@@ -13,6 +13,7 @@ import aio_pika
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
+from urllib.parse import urlencode, quote
 
 # --- конфиг из окружения ---
 RABBIT_URL = os.getenv("RABBIT_URL", "amqp://user:pass@rabbit:5672/")
@@ -140,6 +141,8 @@ async def create_order(order: OrderCreate):
     raise HTTPException(status_code=502, detail=f"FK error {r.status_code}: {r.text[:300]}")
 
 
+
+
 # ============ 1.1) Создание универсальной ссылки (SCI) ============
 class SCILinkRequest(BaseModel):
     amount: float
@@ -148,6 +151,7 @@ class SCILinkRequest(BaseModel):
     description: Optional[str] = None
     us_tag: Optional[str] = None
     us_comment: Optional[str] = None
+    return_url: Optional[str] = None  # опционально
 
 @app.post("/create_sci_link")
 async def create_sci_link(req: SCILinkRequest):
@@ -156,31 +160,36 @@ async def create_sci_link(req: SCILinkRequest):
     if not SECRET2:
         raise HTTPException(status_code=500, detail="SECRET2 not configured")
 
-    # генерим order_id, если не передали
+    # SCI у ФК — минимум 50 RUB. Можешь убрать это условие, но тогда будет их "Упс, ошибка".
+    if req.currency.upper() == "RUB" and req.amount < 50:
+        raise HTTPException(status_code=400, detail="SCI min amount is 50 RUB; use /create_order with i=42 for СБП <50")
+
     order_id = req.order_id or f"sci-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
-    amount_str = f"{req.amount:.2f}"
+    amount_str = f"{req.amount:.2f}"  # важно: точка и 2 знака
+    sign = sci_sign_md5(str(MERCHANT_ID), amount_str, SECRET2, order_id)
 
-    # подпись: md5(MERCHANT_ID:AMOUNT:SECRET2:MERCHANT_ORDER_ID)
-    sign = sci_sign_md5(MERCHANT_ID, amount_str, SECRET2, order_id)
-
+    # собираем только один раз, без ручной склейки
     params = {
         "m": MERCHANT_ID,
         "oa": amount_str,
         "o": order_id,
         "s": sign,
-        "currency": req.currency,
+        "currency": req.currency.upper(),
     }
+    # us_* вернутся в вебхуке как есть
     if req.description:
         params["us_desc"] = req.description
     if req.us_tag:
         params["us_tag"] = req.us_tag
     if req.us_comment:
         params["us_comment"] = req.us_comment
+    if req.return_url:
+        params["return_url"] = req.return_url  # если настроен возврат в ЛК
 
-    query = "&".join(f"{k}={httpx.QueryParams({k:v})[k]}" for k, v in params.items())
+    query = urlencode(params, doseq=False, safe="/:?#[]@!$&'()*+,;=")
     pay_url = f"https://pay.freekassa.ru/?{query}"
 
-    logger.info("SCI link created: %s %s RUB", order_id, amount_str)
+    logger.info("SCI link created: order_id=%s amount=%s sign=%s", order_id, amount_str, sign)
     return {"pay_url": pay_url, "order_id": order_id}
 
 
