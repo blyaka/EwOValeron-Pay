@@ -49,6 +49,10 @@ spec:
             value: /app/media
           - name: MEDIA_URL
             value: /media/
+          - name: PAY_INTERNAL_TOKEN
+            value: "3cf592a2dfe6ef7297f567e134e791bf9a87e8d13adb63ba15103129772d7e81"
+          - name: PAY_LINK_TTL_HOURS
+            value: "24"
         readinessProbe:
           httpGet:
             path: /

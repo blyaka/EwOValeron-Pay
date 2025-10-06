@@ -10,10 +10,13 @@ from typing import Optional, Dict, Any
 
 import httpx
 import aio_pika
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Header
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from urllib.parse import urlencode, quote
+
+import asyncio
+from datetime import datetime, timedelta
 
 # --- конфиг из окружения ---
 RABBIT_URL = os.getenv("RABBIT_URL", "amqp://user:pass@rabbit:5672/")
@@ -73,6 +76,39 @@ async def ping():
 
 
 
+
+# ============ Идемпотентность ============
+
+
+IDEMP_TTL_SEC = int(os.getenv("IDEMP_TTL_SEC", "86400"))  # 24h
+INTERNAL_TOKEN = os.getenv("PAY_INTERNAL_TOKEN")
+
+_idem_lock = asyncio.Lock()
+_idem_store: dict[str, dict] = {}  # key -> {"expires": dt, "payload": {...}}
+
+async def idem_get(key: str) -> Optional[Dict[str, Any]]:
+    now = datetime.utcnow()
+    async with _idem_lock:
+        rec = _idem_store.get(key)
+        if not rec:
+            return None
+        if rec["expires"] < now:
+            _idem_store.pop(key, None)
+            return None
+        return rec["payload"]
+
+async def idem_set(key: str, payload: Dict[str, Any]) -> None:
+    expire_at = datetime.utcnow() + timedelta(seconds=IDEMP_TTL_SEC)
+    async with _idem_lock:
+        # ленивый GC
+        for k, v in list(_idem_store.items()):
+            if v["expires"] < datetime.utcnow():
+                _idem_store.pop(k, None)
+        _idem_store[key] = {"expires": expire_at, "payload": payload}
+
+
+
+
 # ============ 1) Создание заказа ============
 class OrderCreate(BaseModel):
     amount: float
@@ -83,7 +119,23 @@ class OrderCreate(BaseModel):
     payment_id: Optional[str] = None
 
 @app.post("/create_order")
-async def create_order(order: OrderCreate):
+async def create_order(
+    order: OrderCreate,
+    request: Request,
+    x_internal_token: Optional[str] = Header(None, convert_underscores=False),
+    x_idempotency_key: Optional[str] = Header(None, convert_underscores=False),
+):
+    # внутренняя авторизация
+    if INTERNAL_TOKEN and x_internal_token != INTERNAL_TOKEN:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # если пришел идемпотентный ключ — пробуем отдать сохраненный ответ
+    if x_idempotency_key:
+        cached = await idem_get(x_idempotency_key)
+        if cached:
+            logger.info("Idempotent HIT key=%s payment_id=%s", x_idempotency_key, cached.get("payment_id"))
+            return cached
+
     if not MERCHANT_ID:
         raise HTTPException(status_code=500, detail="MERCHANT_ID not configured")
     if not API_KEY:
@@ -127,7 +179,12 @@ async def create_order(order: OrderCreate):
         if not pay_url:
             logger.error("FK no pay link: code=%s body=%s", r.status_code, r.text[:500])
             raise HTTPException(status_code=500, detail="FK response without pay link")
-        return {"pay_url": pay_url, "payment_id": payment_id}
+
+        resp = {"pay_url": pay_url, "payment_id": payment_id}
+        # сохраняем ответ по idem-ключу
+        if x_idempotency_key:
+            await idem_set(x_idempotency_key, resp)
+        return resp
 
     logger.error("FK error %s: %s", r.status_code, r.text[:800])
     raise HTTPException(status_code=502, detail=f"FK error {r.status_code}: {r.text[:300]}")

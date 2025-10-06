@@ -22,6 +22,8 @@ spec:
         - { name: FREKASSA_API_KEY, value: "455116e47360f7f9442b95cad91d88db" }
         - { name: FREKASSA_SECRET_KEY, value: "wV.%os.K!gSg5bc" }
         - { name: FREKASSA_SECRET2, value: "QN8!x@%LBJmJ{e3" }
+        - { name: PAY_INTERNAL_TOKEN, value: "3cf592a2dfe6ef7297f567e134e791bf9a87e8d13adb63ba15103129772d7e81" }
+        - { name: IDEMP_TTL_SEC, value: "86400" }
         readinessProbe:
           httpGet: { path: /health, port: 8000 }
           initialDelaySeconds: 5
