@@ -205,3 +205,10 @@ FORM_MAX_SECONDS = int(os.getenv('FORM_MAX_SECONDS', 3600))
 
 
 PAY_API_URL = os.getenv("PAY_API_URL", "http://pay-api:8000")
+
+
+
+PAY_INTERNAL_TOKEN = os.getenv(
+    "PAY_INTERNAL_TOKEN",
+    "3cf592a2dfe6ef7297f567e134e791bf9a87e8d13adb63ba15103129772d7e81"
+)
