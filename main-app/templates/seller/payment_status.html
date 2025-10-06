@@ -26,44 +26,46 @@
 <main>
 
     <section class="ps-filters">
-        <button class="f-icon" id="filtersReset" aria-label="Сбросить фильтры" title="Сбросить фильтры">
-            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="currentColor" d="M3 5h18l-6.5 7.5v5.75l-5 2.5V12.5L3 5z" />
-            </svg>
-        </button>
+        <div class="ps-filters-container">
+            <button class="f-icon" id="filtersReset" aria-label="Сбросить фильтры" title="Сбросить фильтры">
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="currentColor" d="M3 5h18l-6.5 7.5v5.75l-5 2.5V12.5L3 5z" />
+                </svg>
+            </button>
 
-        <label class="chip chip--toggle" data-chip="date">
-            <span class="chip__title">Дата</span>
-            <span class="chip__body">
-                <input type="date" id="fDateFrom" placeholder="с">
-                <input type="date" id="fDateTo" placeholder="по">
-            </span>
-        </label>
+            <label class="chip chip--toggle" data-chip="date">
+                <span class="chip__title">Дата</span>
+                <span class="chip__body">
+                    <input type="date" id="fDateFrom" placeholder="с">
+                    <input type="date" id="fDateTo" placeholder="по">
+                </span>
+            </label>
 
-        <!-- Сумма -->
-        <label class="chip chip--toggle" data-chip="amount">
-            <span class="chip__title">Сумма платежа</span>
-            <span class="chip__body">
-                <input type="number" id="fAmtMin" inputmode="numeric" placeholder="от">
-                <input type="number" id="fAmtMax" inputmode="numeric" placeholder="до">
-            </span>
-        </label>
+            <!-- Сумма -->
+            <label class="chip chip--toggle" data-chip="amount">
+                <span class="chip__title">Сумма платежа</span>
+                <span class="chip__body">
+                    <input type="number" id="fAmtMin" inputmode="numeric" placeholder="от">
+                    <input type="number" id="fAmtMax" inputmode="numeric" placeholder="до">
+                </span>
+            </label>
 
-        <!-- Tag -->
-        <label class="chip chip--toggle" data-chip="tag">
-            <span class="chip__title">Tag</span>
-            <span class="chip__body">
-                <input type="text" id="fTag" placeholder="например: promo">
-            </span>
-        </label>
+            <!-- Tag -->
+            <label class="chip chip--toggle" data-chip="tag">
+                <span class="chip__title">Tag</span>
+                <span class="chip__body">
+                    <input type="text" id="fTag" placeholder="например: promo">
+                </span>
+            </label>
 
-        <label class="chip grow">
-            <input type="text" id="fOrder" placeholder="Точечный поиск по: Order ID">
-        </label>
+            <label class="chip grow">
+                <input type="text" id="fOrder" placeholder="Точечный поиск по: Order ID">
+            </label>
 
-        <label class="chip grow">
-            <input type="text" id="fComment" placeholder="Поиск по: Комментарию">
-        </label>
+            <label class="chip grow">
+                <input type="text" id="fComment" placeholder="Поиск по: Комментарию">
+            </label>
+        </div>
     </section>
 
 
@@ -82,37 +84,37 @@
                         <th>Статус</th>
                         <th>intid</th>
                         <th>tag</th>
-                        <th>Продавец</th>
+                        {% comment %} <th>Продавец</th> {% endcomment %}
                     </tr>
                 </thead>
                 <tbody>
-                {% for p in payments %}
-                <tr>
-                    <td>{{ p.created_at|date:"d.m.Y | H:i" }}</td>
-                    <td><span class="ps-link">#{{ p.order_id }}</span></td>
-                    <td class="clip" title="{{ p.comment }}">{{ p.comment }}</td>
-                    <td class="num">{{ p.amount }}</td>
-                    <td class="num">{{ p.fee }}</td>
-                    <td class="num">{{ p.payout }}</td>
-                    <td>{{ p.method }}</td>
-                    <td class="status">
-                    {% if p.status|lower == "paid" or p.status|lower == "success" %}
-                        <span class="chk ok" aria-label="ok"></span>
-                    {% elif p.status|lower == "pending" %}
-                        <span class="chk wait" aria-label="pending">pending</span>
-                    {% else %}
-                        <span class="chk fail" aria-label="{{ p.status }}">fail</span>
-                    {% endif %}
-                    </td>
-                    <td class="mono">{{ p.intid }}</td>
-                    <td class="muted">{{ p.tag }}</td>
-                    <td>{{ p.seller }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="11" style="text-align:center;color:var(--muted)">Платежей пока нет</td>
-                </tr>
-                {% endfor %}
+                    {% for p in payments %}
+                    <tr>
+                        <td>{{ p.created_at|date:"d.m.Y | H:i" }}</td>
+                        <td><span class="ps-link">#{{ p.order_id }}</span></td>
+                        <td class="clip" title="{{ p.comment }}">{{ p.comment }}</td>
+                        <td class="num">{{ p.amount }}</td>
+                        <td class="num">{{ p.fee }}</td>
+                        <td class="num">{{ p.payout }}</td>
+                        <td>{{ p.method }}</td>
+                        <td class="status">
+                            {% if p.status|lower == "paid" or p.status|lower == "success" %}
+                            <span class="chk ok" aria-label="ok"></span>
+                            {% elif p.status|lower == "pending" %}
+                            <span class="chk wait" aria-label="pending">pending</span>
+                            {% else %}
+                            <span class="chk fail" aria-label="{{ p.status }}">fail</span>
+                            {% endif %}
+                        </td>
+                        <td class="mono">{{ p.intid }}</td>
+                        <td class="muted">{{ p.tag }}</td>
+                        <td>{{ p.seller }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" style="text-align:center;color:var(--muted)">Платежей пока нет</td>
+                    </tr>
+                    {% endfor %}
                 </tbody>
 
             </table>
