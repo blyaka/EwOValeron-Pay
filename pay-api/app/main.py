@@ -9,6 +9,8 @@ import httpx
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import PlainTextResponse
 import aio_pika
+from pydantic import BaseModel
+import logging, time, hmac, hashlib
 
 RABBIT_URL = os.getenv("RABBIT_URL", "amqp://user:pass@rabbit:5672/")
 FREKASSA_BASE_URL = "https://api.fk.life/v1/"
@@ -18,6 +20,22 @@ app = FastAPI()
 MERCHANT_ID = os.getenv("FREKASSA_MERCHANT_ID")
 API_KEY = os.getenv("FREKASSA_API_KEY")
 SECRET_KEY = os.getenv("FREKASSA_SECRET_KEY")
+
+
+
+
+class _DropHealth(logging.Filter):
+    def filter(self, record):
+        try:
+            msg = record.getMessage()
+        except Exception:
+            msg = str(record)
+        return "/health" not in msg
+
+logging.getLogger("uvicorn.access").addFilter(_DropHealth())
+
+
+
 
 # --- утилиты ---
 def fk_sign(order_id: str, amount: str, currency: str, secret: str) -> str:
@@ -32,8 +50,8 @@ async def root():
     return {"status": "ok"}
 
 @app.get("/health")
-async def health():
-    return {"health": "ok"}
+def health():
+    return PlainTextResponse("ok")
 
 @app.get("/ping")
 async def ping():
@@ -49,8 +67,7 @@ async def send(msg: str):
     return {"sent": msg}
 
 # ============ 1) Создание заказа ============
-from pydantic import BaseModel
-import logging, time, hmac, hashlib
+
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -58,14 +75,13 @@ class OrderCreate(BaseModel):
     amount: float
     email: str
     ip: str
-    payment_method: int = 36   # 36 карты, 44 СБП, 43 SberPay
+    payment_method: int = 36
     description: Optional[str] = None
-    payment_id: Optional[str] = None  # твой внутренний id (paymentId)
+    payment_id: Optional[str] = None
 
 FREKASSA_BASE_URL = "https://api.fk.life/v1/"
 
 def fk_hmac_signature(data: dict, api_key: str) -> str:
-    # сортируем ключи, склеиваем значения через '|', HMAC-SHA256 (секрет — API ключ)
     items = dict(sorted(data.items(), key=lambda x: x[0]))
     msg = "|".join(str(v) for v in items.values())
     return hmac.new(api_key.encode(), msg.encode(), hashlib.sha256).hexdigest()
