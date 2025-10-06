@@ -76,7 +76,7 @@
                         <th>Order ID</th>
                         <th>Комментарий</th>
                         <th>Сумма платежа<br><small>(₽)</small></th>
-                        <th>Комиссия [7,5%]<br><small>(₽)</small></th>
+                        <th>Комиссия {{ commission }}%<br><small>(₽)</small></th>
                         <th>К выплате<br><small>(₽)</small></th>
                         <th>Метод</th>
                         <th>Статус</th>
@@ -86,8 +86,35 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- сюда закинет JS -->
+                {% for p in payments %}
+                <tr>
+                    <td>{{ p.created_at|date:"d.m.Y | H:i" }}</td>
+                    <td><span class="ps-link">#{{ p.order_id }}</span></td>
+                    <td class="clip" title="{{ p.comment }}">{{ p.comment }}</td>
+                    <td class="num">{{ p.amount }}</td>
+                    <td class="num">{{ p.fee }}</td>
+                    <td class="num">{{ p.payout }}</td>
+                    <td>{{ p.method }}</td>
+                    <td class="status">
+                    {% if p.status|lower == "paid" or p.status|lower == "success" %}
+                        <span class="chk ok" aria-label="ok"></span>
+                    {% elif p.status|lower == "pending" %}
+                        <span class="chk wait" aria-label="pending"></span>
+                    {% else %}
+                        <span class="chk fail" aria-label="{{ p.status }}"></span>
+                    {% endif %}
+                    </td>
+                    <td class="mono">{{ p.intid }}</td>
+                    <td class="muted">{{ p.tag }}</td>
+                    <td>{{ p.seller }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" style="text-align:center;color:var(--muted)">Платежей пока нет</td>
+                </tr>
+                {% endfor %}
                 </tbody>
+
             </table>
         </div>
     </section>
@@ -114,119 +141,6 @@
             </svg>
         </button>
     </div>
-
-    <script>
-        // ===== Demo-данные
-        const row = {
-            date: "22.09.2025 | 13:41",
-            order: "#20252409-32",
-            comment: "Пакет 1000 кристаллов (@ivan)",
-            amount: 1000,
-            fee: 75,
-            payout: 925,
-            method: "СБП",
-            status: "ok",
-            intid: "73638261",
-            tag: "promo",
-            seller: "nick"
-        };
-        const paymentsSrc = Array.from({ length: 15 }, (_, i) => ({
-            ...row,
-            order: `#2025${2409 + i}-${30 + (i % 60)}`,
-            amount: 500 + (i % 9) * 250,
-            payout: 500 + (i % 9) * 250 - 75,
-            date: `${String(10 + (i % 20)).padStart(2, "0")}.09.2025 | ${String(10 + (i % 10)).padStart(2, "0")}:${String(11 + (i % 47)).padStart(2, "0")}`,
-            tag: i % 3 ? "promo" : "нет",
-        }));
-
-        const tbody = document.querySelector("#paymentsTable tbody");
-        const $ = (id) => document.getElementById(id);
-
-        // ===== helpers
-        function parseRuDate(s) {
-            // "22.09.2025 | 13:41" -> Date
-            const [dpart, tpart] = s.split("|").map(x => x.trim());
-            const [dd, mm, yyyy] = dpart.split(".").map(Number);
-            const [HH, MM] = (tpart || "00:00").split(":").map(Number);
-            return new Date(yyyy, mm - 1, dd, HH, MM, 0, 0);
-        }
-        function hasVal(v) { return v !== undefined && v !== null && String(v).trim() !== ""; }
-
-        // ===== рендер
-        function render(rows) {
-            tbody.innerHTML = "";
-            rows.forEach(p => {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-        <td>${p.date}</td>
-        <td><span class="ps-link">${p.order}</span></td>
-        <td class="clip" title="${p.comment}">${p.comment}</td>
-        <td class="num">${p.amount}</td>
-        <td class="num">${p.fee}</td>
-        <td class="num">${p.payout}</td>
-        <td>${p.method}</td>
-        <td class="status"><span class="chk ok" aria-label="ok"></span></td>
-        <td class="mono">${p.intid}</td>
-        <td class="muted">${p.tag}</td>
-        <td>${p.seller}</td>`;
-                tbody.appendChild(tr);
-            });
-            updateIconState();
-        }
-
-        // ===== фильтрация
-        function collectFilters() {
-            return {
-                from: hasVal($("fDateFrom").value) ? new Date($("fDateFrom").value + "T00:00:00") : null,
-                to: hasVal($("fDateTo").value) ? new Date($("fDateTo").value + "T23:59:59") : null,
-                min: hasVal($("fAmtMin").value) ? Number($("fAmtMin").value) : null,
-                max: hasVal($("fAmtMax").value) ? Number($("fAmtMax").value) : null,
-                tag: $("fTag").value.trim().toLowerCase(),
-                order: $("fOrder").value.trim().toLowerCase(),
-                comment: $("fComment").value.trim().toLowerCase(),
-            };
-        }
-
-        function applyFilters() {
-            const f = collectFilters();
-            const out = paymentsSrc.filter(p => {
-                const d = parseRuDate(p.date);
-                if (f.from && d < f.from) return false;
-                if (f.to && d > f.to) return false;
-                if (f.min !== null && Number(p.amount) < f.min) return false;
-                if (f.max !== null && Number(p.amount) > f.max) return false;
-                if (f.tag && !String(p.tag).toLowerCase().includes(f.tag)) return false;
-                if (f.order && !String(p.order).toLowerCase().includes(f.order)) return false;
-                if (f.comment && !String(p.comment).toLowerCase().includes(f.comment)) return false;
-                return true;
-            });
-            render(out);
-        }
-
-        function resetFilters() {
-            ["fDateFrom", "fDateTo", "fAmtMin", "fAmtMax", "fTag", "fOrder", "fComment"]
-                .forEach(id => { $(id).value = ""; });
-            render(paymentsSrc);
-        }
-
-        function updateIconState() {
-            const f = collectFilters();
-            const active =
-                f.from || f.to || f.min !== null || f.max !== null ||
-                f.tag || f.order || f.comment;
-            document.getElementById("filtersReset").classList.toggle("active", !!active);
-        }
-
-        // события
-        ["fDateFrom", "fDateTo", "fAmtMin", "fAmtMax", "fTag", "fOrder", "fComment"].forEach(id => {
-            $(id).addEventListener("input", applyFilters);
-            $(id).addEventListener("change", applyFilters);
-        });
-        document.getElementById("filtersReset").addEventListener("click", resetFilters);
-
-        // старт
-        render(paymentsSrc);
-    </script>
 
 
 

@@ -1,19 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: main-worker
+  name: payment-listener
   namespace: evpay
 spec:
   replicas: 1
-  selector: { matchLabels: { app: main-worker } }
+  selector:
+    matchLabels:
+      app: payment-listener
   template:
-    metadata: { labels: { app: main-worker } }
+    metadata:
+      labels:
+        app: payment-listener
     spec:
       containers:
-      - name: worker
+      - name: listener
         image: docker.io/b1yaka/ewovaleron-pay-web:latest
-        command: ["bash","-lc","celery -A config.celery_app worker -l info -c 2 --prefetch-multiplier=16"]
-        command: ["/bin/sh","-lc","celery -A config.celery_app worker -l info -c 2 --prefetch-multiplier=16"]
+        command: ["/bin/sh", "-lc", "python manage.py payment_listener"]
         env:
         - { name: DJANGO_DEBUG, value: "0" }
         - name: SECRET_KEY
