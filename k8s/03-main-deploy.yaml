@@ -36,31 +36,41 @@ spec:
           - name: DATABASE_URL
             value: postgresql://postgres:postgres@pg.evpay.svc.cluster.local:5432/ev_main
           - name: REDIS_URL
-            value: redis://redis-master.evpay.svc.cluster.local:6379/0
+            value: redis://redis.evpay.svc.cluster.local:6379/0
           - name: RABBIT_URL
-            value: amqp://user:pass@rmq-rabbitmq.evpay.svc.cluster.local:5672//
+            value: amqp://user:pass@rabbit.evpay.svc.cluster.local:5672//
           - name: PAY_API_URL
             value: http://pay-api.evpay.svc.cluster.local:8000
           - name: ALLOWED_HOSTS
             value: evpayservice.com,pay.evpayservice.com
           - name: CSRF_TRUSTED_ORIGINS
             value: https://evpayservice.com,https://pay.evpayservice.com
+          - name: MEDIA_ROOT
+            value: /app/media
           - name: MEDIA_URL
             value: /media/
         readinessProbe:
           httpGet:
             path: /
             port: 8000
+            httpHeaders:
+              - name: Host
+                value: evpayservice.com
           initialDelaySeconds: 10
           periodSeconds: 5
           timeoutSeconds: 2
           failureThreshold: 6
+
         livenessProbe:
           httpGet:
             path: /
             port: 8000
+            httpHeaders:
+              - name: Host
+                value: evpayservice.com
           initialDelaySeconds: 20
           periodSeconds: 10
+
         volumeMounts:
           - name: media
             mountPath: /app/media

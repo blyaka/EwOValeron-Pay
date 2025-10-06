@@ -10,12 +10,15 @@ data:
       server_name _;
       access_log off;
       error_log  /var/log/nginx/error.log warn;
-      types { }
+
+      include /etc/nginx/mime.types;
       default_type application/octet-stream;
 
-      location / {
-        root /media;
+      location /media/ {
+        alias /media/;
         try_files $uri =404;
         add_header Cache-Control "public, max-age=31536000, immutable";
       }
+
+      location / { return 404; }
     }
