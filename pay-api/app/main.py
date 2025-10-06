@@ -134,8 +134,8 @@ class OrderCreate(BaseModel):
 async def create_order(
     order: OrderCreate,
     request: Request,
-    x_internal_token: Optional[str] = Header(None, convert_underscores=False),
-    x_idempotency_key: Optional[str] = Header(None, convert_underscores=False),
+    x_internal_token: Optional[str] = Header(None),
+    x_idempotency_key: Optional[str] = Header(None),
 ):
     if INTERNAL_TOKEN and x_internal_token != INTERNAL_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -246,8 +246,8 @@ class InternalCreateLink(BaseModel):
 async def internal_create_link(
     body: InternalCreateLink,
     request: Request,
-    x_internal_token: Optional[str] = Header(None, convert_underscores=False),
-    x_idempotency_key: Optional[str] = Header(None, convert_underscores=False),
+    x_internal_token: Optional[str] = Header(None),
+    x_idempotency_key: Optional[str] = Header(None),
 ):
     if INTERNAL_TOKEN and x_internal_token != INTERNAL_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
