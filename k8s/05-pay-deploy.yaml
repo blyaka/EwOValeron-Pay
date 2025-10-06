@@ -21,6 +21,7 @@ spec:
         - { name: FREKASSA_MERCHANT_ID, value: "66169" }
         - { name: FREKASSA_API_KEY, value: "455116e47360f7f9442b95cad91d88db" }
         - { name: FREKASSA_SECRET_KEY, value: "wV.%os.K!gSg5bc" }
+        - { name: FREKASSA_SECRET2, value: "QN8!x@%LBJmJ{e3" }
         readinessProbe:
           httpGet: { path: /health, port: 8000 }
           initialDelaySeconds: 5

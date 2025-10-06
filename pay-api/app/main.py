@@ -1,29 +1,32 @@
 # main.py
-import hashlib
-import hmac
-import json
 import os
-from typing import Optional
+import time
+import json
+import uuid
+import hmac
+import hashlib
+import logging
+from typing import Optional, Dict, Any
 
 import httpx
+import aio_pika
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import PlainTextResponse
-import aio_pika
 from pydantic import BaseModel
-import logging, time, hmac, hashlib
 
+# --- конфиг из окружения ---
 RABBIT_URL = os.getenv("RABBIT_URL", "amqp://user:pass@rabbit:5672/")
 FREKASSA_BASE_URL = "https://api.fk.life/v1/"
 
-app = FastAPI()
-
 MERCHANT_ID = os.getenv("FREKASSA_MERCHANT_ID")
-API_KEY = os.getenv("FREKASSA_API_KEY")
-SECRET_KEY = os.getenv("FREKASSA_SECRET_KEY")
+API_KEY     = os.getenv("FREKASSA_API_KEY")       # API v1 key (для orders/create)
+SECRET_KEY  = os.getenv("FREKASSA_SECRET_KEY")    # API v1 secret (для подписи вебхука)
+SECRET2     = os.getenv("FREKASSA_SECRET2")       # SCI «секретное слово 2» (для SIGN)
 
+app = FastAPI()
+logger = logging.getLogger("uvicorn.error")
 
-
-
+# --- отрезаем шум от /health в access-логе ---
 class _DropHealth(logging.Filter):
     def filter(self, record):
         try:
@@ -34,17 +37,25 @@ class _DropHealth(logging.Filter):
 
 logging.getLogger("uvicorn.access").addFilter(_DropHealth())
 
+# --- утилиты подписи ---
+def _eq(a: str, b: str) -> bool:
+    return hmac.compare_digest(a.lower(), b.lower())
 
+def fk_hmac_signature(data: Dict[str, Any], api_key: str) -> str:
+    # подпись для /orders/create: SHA256 от values, отсортированных по ключам, через "|"
+    items = dict(sorted(data.items(), key=lambda x: x[0]))
+    msg = "|".join(str(v) for v in items.values())
+    return hmac.new(api_key.encode(), msg.encode(), hashlib.sha256).hexdigest()
 
-
-# --- утилиты ---
-def fk_sign(order_id: str, amount: str, currency: str, secret: str) -> str:
+def api_v1_webhook_sign(order_id: str, amount: str, currency: str, secret: str) -> str:
     payload = f"{order_id}:{amount}:{currency}:{secret}".encode()
     return hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
 
-def cd(a: str, b: str) -> bool:
-    return hmac.compare_digest(a.lower(), b.lower())
+def sci_sign_md5(merchant_id: str, amount: str, secret2: str, order_id: str) -> str:
+    # SIGN = md5(MERCHANT_ID:AMOUNT:SECRET2:MERCHANT_ORDER_ID)
+    return hashlib.md5(f"{merchant_id}:{amount}:{secret2}:{order_id}".encode()).hexdigest()
 
+# --- ping/health ---
 @app.get("/")
 async def root():
     return {"status": "ok"}
@@ -57,6 +68,7 @@ def health():
 async def ping():
     return {"pong": True}
 
+# --- тест отправки в RMQ ---
 @app.post("/send")
 async def send(msg: str):
     conn = await aio_pika.connect_robust(RABBIT_URL)
@@ -67,10 +79,6 @@ async def send(msg: str):
     return {"sent": msg}
 
 # ============ 1) Создание заказа ============
-
-
-logger = logging.getLogger("uvicorn.error")
-
 class OrderCreate(BaseModel):
     amount: float
     email: str
@@ -79,13 +87,6 @@ class OrderCreate(BaseModel):
     description: Optional[str] = None
     payment_id: Optional[str] = None
 
-FREKASSA_BASE_URL = "https://api.fk.life/v1/"
-
-def fk_hmac_signature(data: dict, api_key: str) -> str:
-    items = dict(sorted(data.items(), key=lambda x: x[0]))
-    msg = "|".join(str(v) for v in items.values())
-    return hmac.new(api_key.encode(), msg.encode(), hashlib.sha256).hexdigest()
-
 @app.post("/create_order")
 async def create_order(order: OrderCreate):
     if not MERCHANT_ID:
@@ -93,8 +94,9 @@ async def create_order(order: OrderCreate):
     if not API_KEY:
         raise HTTPException(status_code=500, detail="API_KEY not configured")
 
-    payment_id = order.payment_id or f"ord-{int(time.time()*1000)}"
-    nonce = int(time.time()*1000)  # должен быть больше предыдущего
+    # уникальнее, чтобы не коллизить на двух репликах
+    payment_id = order.payment_id or f"ord-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
+    nonce = int(time.time() * 1000)
 
     base_payload = {
         "shopId": int(MERCHANT_ID),
@@ -112,16 +114,16 @@ async def create_order(order: OrderCreate):
     signature = fk_hmac_signature(base_payload, API_KEY)
     payload = {**base_payload, "signature": signature}
 
-    logger.info(f"FK /orders/create req: {payload}")
+    # не логируем персональные данные целиком
+    logger.info("FK create: payment_id=%s amount=%s", payment_id, base_payload["amount"])
 
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             r = await client.post(FREKASSA_BASE_URL + "orders/create", json=payload)
     except httpx.RequestError as e:
-        logger.error(f"FK request error: {e}")
+        logger.error("FK request error: %s", e)
         raise HTTPException(status_code=502, detail="FK unreachable")
 
-    # Успех (200/201/202). Ссылка в JSON: field "location" или в заголовке Location.
     if r.status_code in (200, 201, 202):
         pay_url = r.headers.get("Location") or r.headers.get("location")
         try:
@@ -130,60 +132,93 @@ async def create_order(order: OrderCreate):
         except Exception:
             pass
         if not pay_url:
-            logger.error(f"FK no pay link: code={r.status_code} body={r.text[:500]}")
+            logger.error("FK no pay link: code=%s body=%s", r.status_code, r.text[:500])
             raise HTTPException(status_code=500, detail="FK response without pay link")
         return {"pay_url": pay_url, "payment_id": payment_id}
 
-    logger.error(f"FK error {r.status_code}: {r.text[:800]}")
+    logger.error("FK error %s: %s", r.status_code, r.text[:800])
     raise HTTPException(status_code=502, detail=f"FK error {r.status_code}: {r.text[:300]}")
 
+# ============ 2) Вебхук (универсальный: SCI и API v1) ============
+async def _publish_payment_event(event: dict):
+    try:
+        conn = await aio_pika.connect_robust(RABBIT_URL)
+        ch = await conn.channel()
+        q = await ch.declare_queue("payments.events", durable=True)
+        await ch.default_exchange.publish(
+            aio_pika.Message(
+                body=json.dumps(event, ensure_ascii=False).encode(),
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT
+            ),
+            routing_key=q.name
+        )
+        await conn.close()
+    except Exception as e:
+        logger.error("RabbitMQ error: %s", e)
 
-
-
-# ============ 2) Вебхук ============
 @app.post("/webhook", response_class=PlainTextResponse)
+@app.post("/webhook/", response_class=PlainTextResponse)
 async def webhook(request: Request):
     ctype = request.headers.get("content-type", "")
     if "application/json" in ctype:
         data = await request.json()
+        if not isinstance(data, dict):
+            raise HTTPException(400, "Invalid JSON")
     else:
         form = await request.form()
         data = dict(form)
 
+    # Ветка SCI (кнопка «Уведомить» в ЛК): MERCHANT_ID/AMOUNT/MERCHANT_ORDER_ID/SIGN
+    if ("MERCHANT_ID" in data) and ("MERCHANT_ORDER_ID" in data) and ("SIGN" in data):
+        if not SECRET2:
+            raise HTTPException(500, "SECRET2 not configured")
+        merchant_id = str(data["MERCHANT_ID"])
+        amount      = str(data["AMOUNT"])
+        order_id    = str(data["MERCHANT_ORDER_ID"])
+        got_sign    = str(data["SIGN"])
+
+        must = sci_sign_md5(merchant_id, amount, SECRET2, order_id)
+        if not _eq(got_sign, must):
+            raise HTTPException(400, "Invalid SIGN (SCI)")
+
+        event = {
+            "provider": "freekassa",
+            "schema":   "sci",
+            "order_id": order_id,
+            "amount":   amount,
+            "currency": data.get("currency") or data.get("CUR") or data.get("CUR_ID"),
+            "status":   "success",
+            "raw":      data,
+        }
+        await _publish_payment_event(event)
+        return PlainTextResponse("YES")  # SCI ожидает "YES"
+
+    # Ветка API v1: orderId/amount/currency/sign/status
+    # Если пришло что-то иное — валидируем по API v1
     try:
         order_id = str(data["orderId"])
-        amount = str(data["amount"])
+        amount   = str(data["amount"])
         currency = str(data["currency"])
         got_sign = str(data.get("sign") or data.get("signature"))
-        status = str(data.get("status", ""))
+        status   = str(data.get("status", "")) or "success"
     except KeyError as e:
         raise HTTPException(status_code=400, detail=f"Missing field: {e}")
 
-    must = fk_sign(order_id, amount, currency, SECRET_KEY)
-    if not cd(got_sign, must):
-        raise HTTPException(status_code=400, detail="Invalid signature")
+    if not SECRET_KEY:
+        raise HTTPException(500, "API secret not configured")
+
+    must = api_v1_webhook_sign(order_id, amount, currency, SECRET_KEY)
+    if not _eq(got_sign, must):
+        raise HTTPException(status_code=400, detail="Invalid signature (API v1)")
 
     event = {
         "provider": "freekassa",
+        "schema":   "api_v1",
         "order_id": order_id,
-        "amount": amount,
+        "amount":   amount,
         "currency": currency,
-        "status": status,
-        "raw": data,
+        "status":   status,
+        "raw":      data,
     }
-    
-    try:
-        conn = await aio_pika.connect_robust(RABBIT_URL)
-        ch = await conn.channel()
-        await ch.default_exchange.publish(
-            aio_pika.Message(
-                body=json.dumps(event, ensure_ascii=False).encode(), 
-                delivery_mode=aio_pika.DeliveryMode.PERSISTENT
-            ),
-            routing_key="payments.events",
-        )
-        await conn.close()
-    except Exception as e:
-        logger.error(f"RabbitMQ error: {e}")
-
-    return "OK"
+    await _publish_payment_event(event)
+    return PlainTextResponse("OK")
