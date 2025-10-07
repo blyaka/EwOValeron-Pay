@@ -299,23 +299,25 @@ td.num {
   width: 70px
 }
 
-.chk {
-  display: inline-grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, .55);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .02);
-  background: radial-gradient(circle at 50% 60%, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 60%);
-}
 
-.chk::after {
-  content: "✓";
-  font-size: 12px;
-  line-height: 1;
-  color: #ffffff;
-  transform: translateY(-.5px);
+
+.chk {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:24px;
+  height:24px;
+  border-radius:50%;
+}
+.chk svg { width:16px; height:16px; }
+
+.chk.ok { color:#10b981; background:rgba(16,185,129,.15); }
+.chk.wait { color:#f59e0b; background:rgba(245,158,11,.15); }
+.chk.fail { color:#ef4444; background:rgba(239,68,68,.15); }
+
+.chk.ok:hover, .chk.wait:hover, .chk.fail:hover {
+  transform:scale(1.05);
+  transition:.2s;
 }
 
 
