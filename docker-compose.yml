@@ -47,7 +47,7 @@ services:
 
   pay-api:
     build: ./pay-api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000  # поправь модуль, если другой
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     volumes:
       - ./pay-api:/app
     working_dir: /app
@@ -56,7 +56,6 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db-pay:5432/ev_pay
       REDIS_URL: redis://redis:6379/1
       RABBIT_URL: amqp://user:pass@rabbit:5672/
-      # опционально: PAY_PROVIDER_URL, CALLBACK_URL и т.п.
     depends_on:
       db-pay:
         condition: service_healthy
