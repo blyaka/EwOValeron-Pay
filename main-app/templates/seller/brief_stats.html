@@ -4,8 +4,7 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{% static 'css/pages/base_lk.css'%}">
-<link rel="stylesheet" href="{% static 'css/pages/payment-status.css'%}">
-<link rel="stylesheet" href="{% static 'css/pages/payment-links.css'%}">
+<link rel="stylesheet" href="{% static 'css/pages/brief_stats.css'%}">
 {% endblock styles %}
 
 {% block content %}
@@ -24,6 +23,55 @@
 </div>
 
 <main>
+
+
+    <section class="bs">
+        <article class="bs-card">
+            <header class="bs-head">За сегодня:</header>
+            <ul class="bs-list">
+                <li><span class="k">Исполненные заказы:</span><span class="v">8</span></li>
+
+                <li>
+                    <span class="k">Всего поступлений:</span>
+                    <small class="s">*выручка</small>
+                    <span class="v">8888</span>
+                </li>
+
+                <li>
+                    <span class="k">Всего выводов:</span>
+                    <small class="s">*прибыль</small>
+                    <span class="v">8823</span>
+                </li>
+
+                <li><span class="k">Средний чек:</span><span class="v">555</span></li>
+                <li><span class="k">Конверсия:</span><span class="v">555</span></li>
+            </ul>
+        </article>
+
+        <article class="bs-card">
+            <header class="bs-head">За последний месяц:</header>
+            <ul class="bs-list">
+                <li><span class="k">Исполненные заказы:</span><span class="v">8</span></li>
+
+                <li>
+                    <span class="k">Всего поступлений:</span>
+                    <small class="s">*выручка</small>
+                    <span class="v">8888</span>
+                </li>
+
+                <li>
+                    <span class="k">Всего выводов:</span>
+                    <small class="s">*прибыль</small>
+                    <span class="v">8823</span>
+                </li>
+
+                <li><span class="k">Средний чек:</span><span class="v">555</span></li>
+                <li><span class="k">Конверсия:</span><span class="v">555</span></li>
+                <li><span class="k">Долг:</span><span class="v">555</span></li>
+            </ul>
+        </article>
+    </section>
+
 
 </main>
 

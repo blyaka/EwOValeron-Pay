@@ -1,3 +1,84 @@
-a {
-    
+:root {
+    --panel: #0b0b0d;
+    --panel-2: #111215;
+    --stroke: rgba(255, 255, 255, 0.38)
+}
+
+.bs {
+    max-width: var(--container, 1200px);
+    margin: 40px auto;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(16px, 2vw, 32px);
+}
+
+@media (max-width: 900px) {
+    .bs {
+        grid-template-columns: 1fr;
+    }
+}
+
+.bs-card {
+    position: relative;
+    border-radius: 16px;
+    background: linear-gradient(94.63deg, rgba(255, 42, 79, 0.36) -79%, rgba(7, 7, 9, 0.36) 97.45%);
+    border: 1px solid var(--stroke);
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
+    color: var(--text);
+    height: fit-content;
+}
+
+.bs-head {
+    padding: 30px;
+    font-size: clamp(16px, 2.2vw, 20px);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #fff;
+    border-bottom: 1px solid var(--stroke);
+}
+
+.bs-list {
+    background: rgba(7, 7, 9, 0.65);
+    height: 100%;
+    list-style: none;
+    margin: 0;
+    padding: 8px 0 6px;
+}
+
+.bs-list li {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 30px;
+    position: relative;
+}
+
+.bs-list li+li {
+    border-top: 1px solid var(--stroke);
+}
+
+.bs-list .k {
+    font-size: clamp(14px, 1.6vw, 16px);
+}
+
+.bs-list .s {
+    position: absolute;
+    bottom: 8px;
+    display: block;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    grid-column: 1 / 2;
+}
+
+.bs-list .v {
+    justify-self: end;
+    font-weight: 700;
+    font-size: clamp(18px, 3.2vw, 28px);
+    color: #ff3a5d;
+    text-shadow: 0 0 18px rgba(255, 58, 93, .35);
 }
