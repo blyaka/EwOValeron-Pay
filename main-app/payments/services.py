@@ -13,3 +13,15 @@ def next_order_id_for(user):
         prefix = user.seller.order_prefix
         order_id = f"{prefix}-{today.strftime('%Y%m%d')}-{row.last_seq:02d}"
         return order_id, row.last_seq, prefix, today
+    
+
+
+def preview_next_order_id_for(user):
+    today = timezone.now().date()
+    row, _ = SellerDayCounter.objects.get_or_create(
+        user=user, day=today, defaults={"last_seq": 0}
+    )
+    prefix = user.seller.order_prefix
+    next_seq = row.last_seq + 1
+    order_id = f"{prefix}-{today.strftime('%Y%m%d')}-{next_seq:02d}"
+    return order_id, next_seq, prefix, today

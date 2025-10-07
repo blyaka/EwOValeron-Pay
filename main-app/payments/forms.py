@@ -17,11 +17,6 @@ class CreateLinkForm(forms.Form):
     tag = forms.CharField(max_length=64, required=False)
     ttl_minutes = forms.IntegerField(min_value=1, max_value=60*24*30, initial=60)
 
-    order_id = forms.CharField(required=False)
-    order_seq = forms.IntegerField(required=False)
-    order_prefix = forms.CharField(required=False)
-    order_date = forms.DateField(required=False, input_formats=["%Y-%m-%d"])
-
     def clean(self):
         c = super().clean()
         m = int(c.get("method") or 36)
@@ -31,15 +26,9 @@ class CreateLinkForm(forms.Form):
         return c
 
     def save(self, user) -> Payment:
-        order_id = self.cleaned_data.get("order_id")
-        seq = self.cleaned_data.get("order_seq")
-        prefix = self.cleaned_data.get("order_prefix")
-        day = self.cleaned_data.get("order_date")
-
-        if not order_id or Payment.objects.filter(order_id=order_id).exists():
-            order_id, seq, prefix, day = next_order_id_for(user)
-
+        order_id, seq, prefix, day = next_order_id_for(user)
         idem = uuid.uuid4().hex
+
         payload = {
             "amount": float(self.cleaned_data["amount"]),
             "email": BOT_EMAIL,
@@ -89,4 +78,3 @@ class CreateLinkForm(forms.Form):
             order_seq=seq,
             order_id=order_id,
         )
-

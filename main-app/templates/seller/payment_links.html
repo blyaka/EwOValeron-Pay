@@ -297,8 +297,6 @@
 
 
 
-
-
 <script>
 (function () {
   const $ = s => document.querySelector(s);
@@ -322,20 +320,7 @@
   }
   const csrftoken = getCookie('csrftoken');
 
-  // --- РЕЗЕРВ ORDER_ID ---
-  let allocated = null;
-
-  async function allocateOrderId() {
-    const r = await fetch('/payments/allocate-order-id/', {
-      method: 'POST',
-      headers: { 'X-CSRFToken': csrftoken }
-    });
-    if (!r.ok) throw new Error('allocate failed');
-    const d = await r.json();
-    allocated = d;
-    orderEl.textContent = d.order_id || '—';
-  }
-
+  // --- helpers ---
   function lockBody() {
     __scrollY = window.scrollY || window.pageYOffset;
     const sbw = window.innerWidth - document.documentElement.clientWidth;
@@ -357,31 +342,6 @@
     document.body.style.paddingRight = '';
     window.scrollTo(0, __scrollY);
   }
-
-  async function openModal() {
-    modal.classList.add('show');
-    lockBody();
-    orderEl.textContent = '#—';
-    try { await allocateOrderId(); } catch(e) { orderEl.textContent = 'ошибка'; }
-  }
-  function closeModal() { modal.classList.remove('show'); unlockBody(); /* allocated не сбрасываем */ }
-
-  openBtn.addEventListener('click', e => { e.preventDefault(); openModal(); });
-  closeBtn.addEventListener('click', closeModal);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-  function formatTTL(h, m) {
-    const total = h * 60 + m;
-    const d = Math.floor(total / 1440);
-    const hh = Math.floor((total % 1440) / 60);
-    const mm = total % 60;
-    return `${d}д ${hh}ч ${mm}м`;
-  }
-  [expH, expM].forEach(el => el.addEventListener('input', () => {
-    const h = +expH.value || 0, m = +expM.value || 0;
-    hint.textContent = 'Ссылка активна: ' + formatTTL(h, m);
-  }));
-
   function fmtDate(dt) {
     const d = new Date(dt);
     const dd = String(d.getDate()).padStart(2,'0');
@@ -401,7 +361,13 @@
     const m = diffMin % 60;
     return `${d}д ${h}ч ${m}м`;
   }
-
+  function formatTTL(h, m) {
+    const total = h * 60 + m;
+    const d = Math.floor(total / 1440);
+    const hh = Math.floor((total % 1440) / 60);
+    const mm = total % 60;
+    return `${d}д ${hh}ч ${mm}м`;
+  }
   function prependRow(p) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -411,7 +377,7 @@
       <td>${p.comment || ''}</td>
       <td>${p.tag || '—'}</td>
       <td data-exp="${p.expires_at}">${ttlFromNow(p.expires_at)}</td>
-      <td>pending</td>
+      <td>Активна</td>
       <td>
         <button class="btn small copy-btn" data-url="${p.public_url}">Скопировать</button>
         <a class="btn small" target="_blank" rel="noopener" href="${p.public_url}">Открыть</a>
@@ -420,6 +386,34 @@
     tbody.prepend(tr);
   }
 
+  // --- preview order id (без инкремента) ---
+  async function loadPreviewOrderId() {
+    const r = await fetch('/payments/preview-order-id/', { method: 'GET', credentials: 'same-origin' });
+    if (!r.ok) throw new Error('preview failed');
+    const d = await r.json();
+    orderEl.textContent = d.order_id || '—';
+  }
+
+  // --- modal open/close ---
+  async function openModal() {
+    modal.classList.add('show');
+    lockBody();
+    orderEl.textContent = '#—';
+    try { await loadPreviewOrderId(); } catch(e) { orderEl.textContent = 'ошибка'; }
+  }
+  function closeModal() { modal.classList.remove('show'); unlockBody(); }
+
+  openBtn.addEventListener('click', e => { e.preventDefault(); openModal(); });
+  closeBtn.addEventListener('click', closeModal);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // --- TTL hint ---
+  [expH, expM].forEach(el => el.addEventListener('input', () => {
+    const h = +expH.value || 0, m = +expM.value || 0;
+    hint.textContent = 'Ссылка активна: ' + formatTTL(h, m);
+  }));
+
+  // --- copy in table ---
   tbody.addEventListener('click', async (e) => {
     const btn = e.target.closest('.copy-btn');
     if (!btn) return;
@@ -427,29 +421,28 @@
       await navigator.clipboard.writeText(btn.dataset.url);
       btn.textContent = 'Скопировано';
       setTimeout(() => btn.textContent = 'Скопировать', 1500);
-    } catch {
-      alert('Не удалось скопировать');
-    }
+    } catch { alert('Не удалось скопировать'); }
   });
 
+  // --- generate link ---
   genBtn.addEventListener('click', async () => {
     const amount = ($('#amount').value || '').trim();
     const comment = ($('#comment').value || '').trim();
     const tag = ($('#tg-input').value || '').trim();
-    const methodKey = ($('#payMethod').value || 'sbp').toLowerCase();
+    const methodKey = (payMethodKeyEl.value || 'sbp').toLowerCase();
     const method = METHOD_MAP[methodKey] || 44;
 
     if (!amount || Number(amount) <= 0) { alert('Введите сумму'); return; }
-    if (!allocated?.order_id) {
-      try { await allocateOrderId(); } catch(e){ return alert('Не удалось получить Order ID'); }
-    }
+
+    const ttlMinutes = (+(expH.value || 0) * 60) + (+(expM.value || 0));
+    if (!ttlMinutes || ttlMinutes < 1) { alert('Укажи время жизни ссылки'); return; }
 
     const body = new URLSearchParams({
-      amount, method, comment, tag,
-      order_id: allocated.order_id,
-      order_seq: allocated.order_seq ?? '',
-      order_prefix: allocated.order_prefix ?? '',
-      order_date: allocated.order_date ?? ''
+      amount,
+      method,
+      comment,
+      tag,
+      ttl_minutes: String(ttlMinutes)
     });
 
     try {
@@ -462,23 +455,23 @@
         body: body.toString()
       });
       const data = await resp.json();
-
       if (!resp.ok || !data.ok) {
         const err = data.errors ? JSON.stringify(data.errors) : (data.error || 'Ошибка создания');
         throw new Error(err);
       }
 
       orderEl.textContent = '#' + data.order_id;
+
       prependRow({
         order_id: data.order_id,
         public_url: data.public_url || data.pay_url,
         amount: data.amount,
         comment: data.comment,
         tag: data.tag,
-        expires_at: data.expires_at || new Date(Date.now() + 24*3600*1000).toISOString()
+        expires_at: data.expires_at || new Date(Date.now() + ttlMinutes * 60000).toISOString()
       });
 
-      window.open(data.public_url || data.pay_url, '_blank');
+      // window.open(data.public_url || data.pay_url, '_blank');
       closeModal();
 
     } catch (e) {
@@ -487,7 +480,6 @@
   });
 })();
 </script>
-
 
 
 
