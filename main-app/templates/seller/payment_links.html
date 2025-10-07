@@ -157,8 +157,14 @@
             <div class="form-row">
                 <div class="order-id-container">
                     <label class="order-label">Order ID:</label>
-                    <div class="order-id" id="orderId">#2025XXXX</div>
+                    <div class="order-id" id="orderId">-</div>
                 </div>
+
+                <input type="hidden" name="order_id" id="order_id">
+                <input type="hidden" name="order_seq" id="order_seq">
+                <input type="hidden" name="order_prefix" id="order_prefix">
+                <input type="hidden" name="order_date" id="order_date">
+
                 <p class="hint">Запиши этот ID — он нужен для отслеживания платежа.</p>
             </div>
 
@@ -293,13 +299,11 @@
 
 
 
-
-
 <script>
 (function () {
   const $ = s => document.querySelector(s);
   const modal = $('#genModal');
-  const openBtn = document.querySelector('.ps-filters a.chip'); // "Добавить ссылку"
+  const openBtn = document.querySelector('.ps-filters a.chip');
   const closeBtn = $('#genClose');
   const orderEl = $('#orderId');
   const expH = $('#expH');
@@ -307,20 +311,31 @@
   const hint = $('#timeHint');
   const genBtn = $('#genBtn');
   const tbody = document.querySelector('#paymentsTable tbody');
-  const payMethodKeyEl = $('#payMethod'); // "sbp" | "card" | "sberpay"
+  const payMethodKeyEl = $('#payMethod');
   let __scrollY = 0;
 
-  // метод -> ID для ФК
-  const METHOD_MAP = { sbp: 44, card: 36, sberpay: 35 }; // 35 сейчас используем как плейсхолдер
+  const METHOD_MAP = { sbp: 44, card: 36, sberpay: 35 };
 
-  // csrf
   function getCookie(name) {
     const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
     return m ? m.pop() : '';
   }
   const csrftoken = getCookie('csrftoken');
 
-  // lock/unlock body при открытой модалке
+  // --- РЕЗЕРВ ORDER_ID ---
+  let allocated = null;
+
+  async function allocateOrderId() {
+    const r = await fetch('/payments/allocate-order-id/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrftoken }
+    });
+    if (!r.ok) throw new Error('allocate failed');
+    const d = await r.json();
+    allocated = d;
+    orderEl.textContent = d.order_id || '—';
+  }
+
   function lockBody() {
     __scrollY = window.scrollY || window.pageYOffset;
     const sbw = window.innerWidth - document.documentElement.clientWidth;
@@ -343,18 +358,18 @@
     window.scrollTo(0, __scrollY);
   }
 
-  function openModal() {
+  async function openModal() {
     modal.classList.add('show');
     lockBody();
-    orderEl.textContent = '#—'; // реальный order_id покажем после ответа
+    orderEl.textContent = '#—';
+    try { await allocateOrderId(); } catch(e) { orderEl.textContent = 'ошибка'; }
   }
-  function closeModal() { modal.classList.remove('show'); unlockBody(); }
+  function closeModal() { modal.classList.remove('show'); unlockBody(); /* allocated не сбрасываем */ }
 
   openBtn.addEventListener('click', e => { e.preventDefault(); openModal(); });
   closeBtn.addEventListener('click', closeModal);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-  // TTL-хинт чисто визуально
   function formatTTL(h, m) {
     const total = h * 60 + m;
     const d = Math.floor(total / 1440);
@@ -367,7 +382,6 @@
     hint.textContent = 'Ссылка активна: ' + formatTTL(h, m);
   }));
 
-  // помощники
   function fmtDate(dt) {
     const d = new Date(dt);
     const dd = String(d.getDate()).padStart(2,'0');
@@ -386,9 +400,8 @@
     const h = Math.floor((diffMin % 1440) / 60);
     const m = diffMin % 60;
     return `${d}д ${h}ч ${m}м`;
-    }
+  }
 
-  // добавить строку в таблицу
   function prependRow(p) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -407,7 +420,6 @@
     tbody.prepend(tr);
   }
 
-  // копирование
   tbody.addEventListener('click', async (e) => {
     const btn = e.target.closest('.copy-btn');
     if (!btn) return;
@@ -420,7 +432,6 @@
     }
   });
 
-  // сабмит "Сгенерировать"
   genBtn.addEventListener('click', async () => {
     const amount = ($('#amount').value || '').trim();
     const comment = ($('#comment').value || '').trim();
@@ -429,8 +440,17 @@
     const method = METHOD_MAP[methodKey] || 44;
 
     if (!amount || Number(amount) <= 0) { alert('Введите сумму'); return; }
+    if (!allocated?.order_id) {
+      try { await allocateOrderId(); } catch(e){ return alert('Не удалось получить Order ID'); }
+    }
 
-    const body = new URLSearchParams({ amount, method, comment, tag });
+    const body = new URLSearchParams({
+      amount, method, comment, tag,
+      order_id: allocated.order_id,
+      order_seq: allocated.order_seq ?? '',
+      order_prefix: allocated.order_prefix ?? '',
+      order_date: allocated.order_date ?? ''
+    });
 
     try {
       const resp = await fetch("{% url 'generate_link' %}", {
@@ -448,22 +468,18 @@
         throw new Error(err);
       }
 
-      // обновим модалку и таблицу
       orderEl.textContent = '#' + data.order_id;
       prependRow({
         order_id: data.order_id,
-        public_url: data.public_url || data.pay_url, // совместимость, но должно быть public_url
+        public_url: data.public_url || data.pay_url,
         amount: data.amount,
         comment: data.comment,
         tag: data.tag,
         expires_at: data.expires_at || new Date(Date.now() + 24*3600*1000).toISOString()
       });
 
-      // откроем ссылку сразу
       window.open(data.public_url || data.pay_url, '_blank');
-
-      // по желанию можно закрыть модалку:
-      // closeModal();
+      closeModal();
 
     } catch (e) {
       alert('Ошибка: ' + e.message);
@@ -471,7 +487,6 @@
   });
 })();
 </script>
-
 
 
 

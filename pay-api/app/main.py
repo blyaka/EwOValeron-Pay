@@ -211,19 +211,18 @@ _link_store: dict[str, dict] = {}  # token -> {"fk_url": str, "expires_at": date
 
 
 async def link_get(token: str) -> Optional[Dict[str, Any]]:
-    # храним как JSON
     raw = await redis_cli.get(f"paylink:{token}")
-    if not raw:
-        return None
-    return json.loads(raw)
+    return json.loads(raw) if raw else None
 
 
-async def link_set(token: str, fk_url: str, ttl_hours: int = PAY_LINK_TTL_HOURS):
+async def link_set(token: str, fk_url: str, ttl_seconds: int):
+    exp = datetime.utcnow() + timedelta(seconds=ttl_seconds)
     rec = {
         "fk_url": fk_url,
-        "expires_at": (datetime.utcnow() + timedelta(hours=ttl_hours)).isoformat()
+        "expires_at": exp.isoformat() + "Z"
     }
-    await redis_cli.setex(f"paylink:{token}", ttl_hours * 3600, json.dumps(rec, ensure_ascii=False))
+    await redis_cli.setex(f"paylink:{token}", ttl_seconds, json.dumps(rec, ensure_ascii=False))
+
 
 
 @app.get("/pay/{token}")
@@ -242,6 +241,7 @@ class InternalCreateLink(BaseModel):
     payment_method: int = 36
     description: Optional[str] = None
     payment_id: Optional[str] = None
+    ttl_minutes: Optional[int] = None 
 
 
 @app.post("/internal/create_link")
@@ -254,27 +254,30 @@ async def internal_create_link(
     if INTERNAL_TOKEN and x_internal_token != INTERNAL_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+    ttl_min = body.ttl_minutes if body.ttl_minutes is not None else PAY_LINK_TTL_HOURS * 60
+    ttl_min = max(1, min(ttl_min, 60 * 24 * 30))  # защита: 1 мин ... 30 дней
+    ttl_sec = ttl_min * 60
+    exp_iso = (datetime.utcnow() + timedelta(seconds=ttl_sec)).isoformat() + "Z"
+
     if x_idempotency_key:
         cached = await idem_get(x_idempotency_key)
         if cached:
             fk_url = cached.get("fk_url") or cached.get("pay_url")
             if fk_url:
                 token = cached.get("token") or x_idempotency_key
-                await link_set(token, fk_url, ttl_hours=PAY_LINK_TTL_HOURS)
-
+                await link_set(token, fk_url, ttl_sec)
                 resp = {
                     "public_url": f"https://pay.evpayservice.com/pay/{token}",
                     "token": token,
                     "payment_id": cached.get("payment_id"),
                     "fk_url": fk_url,
-                    "expires_at": (datetime.utcnow() + timedelta(hours=PAY_LINK_TTL_HOURS)).isoformat() + "Z",
+                    "expires_at": exp_iso,
                 }
                 await idem_set(x_idempotency_key, resp)
                 return resp
 
-    order_payload = OrderCreate(**body.model_dump())
     created = await create_order(
-        order=order_payload,
+        order=OrderCreate(**body.model_dump(exclude={"ttl_minutes"})),
         request=request,
         x_internal_token=x_internal_token,
         x_idempotency_key=x_idempotency_key,
@@ -284,19 +287,17 @@ async def internal_create_link(
     token = x_idempotency_key or uuid.uuid4().hex
     public_url = f"https://pay.evpayservice.com/pay/{token}"
 
-    await link_set(token, fk_url, ttl_hours=PAY_LINK_TTL_HOURS)
+    await link_set(token, fk_url, ttl_sec)
 
     resp = {
         "public_url": public_url,
         "token": token,
         "payment_id": created["payment_id"],
         "fk_url": fk_url,
-        "expires_at": (datetime.utcnow() + timedelta(hours=PAY_LINK_TTL_HOURS)).isoformat() + "Z",
+        "expires_at": exp_iso,
     }
-
     if x_idempotency_key:
         await idem_set(x_idempotency_key, resp)
-
     return resp
 
 
