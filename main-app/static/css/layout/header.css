@@ -219,3 +219,31 @@
         display: inline-flex
     }
 }
+
+
+
+
+
+
+.maintenance-banner {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    background: rgba(255, 166, 0, 0.12);
+    color: #ffcc66;
+    border: 1px solid rgba(255, 166, 0, 0.25);
+    backdrop-filter: blur(6px);
+    z-index: 1100;
+}
+
+.icon-alert {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
