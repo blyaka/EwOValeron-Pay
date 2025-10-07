@@ -69,7 +69,7 @@
                         <th>Order ID</th>
                         <th>Комментарий</th>
                         <th>Сумма платежа<br><small>(₽)</small></th>
-                        <th>Комиссия {{ commission }}%<br><small>(₽)</small></th>
+                        <th>Комиссия<br><small>(₽)</small></th>
                         <th>К выплате<br><small>(₽)</small></th>
                         <th>Метод</th>
                         <th>Статус</th>
@@ -85,7 +85,13 @@
                         <td><span class="ps-link">#{{ p.order_id }}</span></td>
                         <td class="clip" title="{{ p.comment }}">{{ p.comment }}</td>
                         <td class="num">{{ p.amount }}</td>
-                        <td class="num">{{ p.fee }}</td>
+                        <td class="num">
+                            {% if p.fee %}
+                                {{ p.fee }} <span class="muted">({{ p.commission_percent }}%)</span>
+                            {% else %}
+                                — <span class="muted">{% if p.status == 'pending' %}(будет при оплате){% endif %}</span>
+                            {% endif %}
+                            </td>
                         <td class="num">{{ p.payout }}</td>
                         <td>{{ p.method }}</td>
                         <td class="status">

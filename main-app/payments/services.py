@@ -1,6 +1,8 @@
 from django.utils import timezone
 from django.db import transaction
-from .models import SellerDayCounter
+from .models import SellerDayCounter, SellerCommission
+from decimal import Decimal
+from django.conf import settings
 
 def next_order_id_for(user):
     today = timezone.now().date()
@@ -25,3 +27,9 @@ def preview_next_order_id_for(user):
     next_seq = row.last_seq + 1
     order_id = f"{prefix}-{today.strftime('%Y%m%d')}-{next_seq:02d}"
     return order_id, next_seq, prefix, today
+
+
+
+def get_effective_commission_from_profile(user, when=None) -> Decimal:
+    sp = getattr(user, "seller", None)
+    return Decimal(getattr(sp, "commission_pct", 0) or 0)
