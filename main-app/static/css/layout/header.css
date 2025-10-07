@@ -227,8 +227,8 @@
 
 .maintenance-banner {
     position: absolute;
-    top: 8px;
-    left: 12px;
+    top: 21px;
+    left: 6px;
     display: flex;
     align-items: center;
     gap: 6px;
