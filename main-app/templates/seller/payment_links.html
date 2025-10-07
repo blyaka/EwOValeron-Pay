@@ -471,7 +471,7 @@
         expires_at: data.expires_at || new Date(Date.now() + ttlMinutes * 60000).toISOString()
       });
 
-      window.open(data.public_url || data.pay_url, '_blank');
+      // window.open(data.public_url || data.pay_url, '_blank');
       closeModal();
 
     } catch (e) {
