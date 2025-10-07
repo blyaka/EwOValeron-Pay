@@ -85,3 +85,9 @@ def payment_status(request):
         "payments": rows,
         "commission": commission_pct,
     })
+
+
+
+
+def brief_stats(request):
+    return render(request, 'seller/brief_stats.html')
