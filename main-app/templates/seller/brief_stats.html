@@ -1,0 +1,32 @@
+{% extends '_base.html' %}
+{% load static %}
+{% load pay_extras %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/pages/base_lk.css'%}">
+<link rel="stylesheet" href="{% static 'css/pages/payment-status.css'%}">
+<link rel="stylesheet" href="{% static 'css/pages/payment-links.css'%}">
+{% endblock styles %}
+
+{% block content %}
+
+
+<div class="sub-nav-lk-container">
+    <div class="sub-nav-lk">
+        <a href="{% url 'brief-stats' %}">Краткая статистика</a>
+        <a href="{% url 'payment-status' %}">Статус платежей</a>
+        <a href="">Выводы</a>
+        <a href="">Генерация отчета</a>
+        <a href="">Уведомления</a>
+        <a href="{% url 'payment-links' %}">Платежные ссылки</a>
+        <a href="">История чарж-беков</a>
+    </div>
+</div>
+
+<main>
+
+</main>
+
+
+
+{% endblock content %}
