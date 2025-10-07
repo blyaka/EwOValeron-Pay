@@ -42,6 +42,7 @@ def home_lk(request):
 def payment_links(request):
     qs = (Payment.objects
           .filter(user=request.user, status__in=["pending", "created"], expires_at__gt=timezone.now())
+          .select_related("tag_obj")                     # ← вот это
           .order_by("-created_at"))
     return render(request, "seller/payment_links.html", {"payments": qs})
 
@@ -54,36 +55,18 @@ def payment_links(request):
 
 @login_required
 def payment_status(request):
-    try:
-        seller = request.user.seller
-        commission_pct = seller.commission_pct or Decimal("0")
-    except SellerProfile.DoesNotExist:
-        commission_pct = Decimal("0")
-
-    qs = Payment.objects.filter(user=request.user).order_by("-created_at")
-
-    rows = []
-    for p in qs:
-        fee = (p.amount * commission_pct / Decimal("100")).quantize(Decimal("0.01"))
-        payout = (p.amount - fee).quantize(Decimal("0.01"))
-
-        rows.append({
-            "created_at": p.created_at,
-            "order_id": p.order_id,
-            "comment": p.comment or "",
-            "amount": p.amount,
-            "fee": fee,
-            "payout": payout,
-            "method": METHOD_NAMES.get(p.method, str(p.method)),
-            "status": p.status,
-            "intid": getattr(p, "fk_intid", "") or "—",
-            "tag": p.tag or "нет",
-            "seller": request.user.username,
-        })
+    # отдаём реальные объекты, чтобы шаблон мог читать
+    # p.fee, p.payout, p.commission_percent, p.method_label, p.tag_obj и т.д.
+    payments = (Payment.objects
+                .filter(user=request.user)
+                .select_related("tag_obj")
+                .order_by("-created_at"))
 
     return render(request, "seller/payment_status.html", {
-        "payments": rows,
-        "commission": commission_pct,
+        "payments": payments,
+        # если в шаблоне больше не нужен, можно убрать ключ 'commission'
+        # оставлю для совместимости, но он теперь только для информации
+        "commission": getattr(getattr(request.user, "seller", None), "commission_pct", Decimal("0")),
     })
 
 

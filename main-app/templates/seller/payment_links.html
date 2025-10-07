@@ -92,10 +92,12 @@
                         <td>#{{ p.order_id }}</td>
                         <td>{{ p.amount }}</td>
                         <td>{{ p.comment|default:"" }}</td>
-                        <td>{{ p.tag|default:"—" }}</td>
+                        <td>
+                          {% if p.tag_obj %}{{ p.tag_obj.name }}{% elif p.tag %}{{ p.tag }}{% else %}—{% endif %}
+                        </td>
                         <td>{{ p.expires_at|ttl }}</td>
                         <td>
-                        {% if p.status == "pending" %}Активна{% else %}{{ p.status }}{% endif %}
+                          {% if p.status|lower in "pending,created" %}Активна{% else %}{{ p.status }}{% endif %}
                         </td>
                         <td>
                         <button class="btn small copy-btn" data-url="{{ p.public_url }}">Скопировать</button>
@@ -287,7 +289,7 @@
 </script>
 
 
-
+{% comment %} запрос {% endcomment %}
 <script>
 (function () {
   const $ = s => document.querySelector(s);
@@ -366,7 +368,7 @@
       <td>#${p.order_id}</td>
       <td>${p.amount}</td>
       <td>${p.comment || ''}</td>
-      <td>${p.tag || '—'}</td>
+      <td>${p.tag_name || p.tag || '—'}</td>
       <td data-exp="${p.expires_at}">${ttlFromNow(p.expires_at)}</td>
       <td>Активна</td>
       <td>
@@ -419,9 +421,12 @@
   genBtn.addEventListener('click', async () => {
     const amount = ($('#amount').value || '').trim();
     const comment = ($('#comment').value || '').trim();
-    const tag = ($('#tg-input').value || '').trim();
     const methodKey = (payMethodKeyEl.value || 'sbp').toLowerCase();
     const method = METHOD_MAP[methodKey] || 44;
+
+    // получаем выбранный тег из селектора (должен быть определён твоим скриптом тегов)
+    const tagId = (window.__getChosenTagId ? window.__getChosenTagId() : null);
+    const tagName = (window.__getChosenTagName ? window.__getChosenTagName() : null); // опционально, если экспортируешь
 
     if (!amount || Number(amount) <= 0) { alert('Введите сумму'); return; }
 
@@ -432,8 +437,8 @@
       amount,
       method,
       comment,
-      tag,
-      ttl_minutes: String(ttlMinutes)
+      ttl_minutes: String(ttlMinutes),
+      ...(tagId ? { tag_id: String(tagId) } : {})
     });
 
     try {
@@ -458,11 +463,12 @@
         public_url: data.public_url || data.pay_url,
         amount: data.amount,
         comment: data.comment,
-        tag: data.tag,
+        // покажем имя тега: сперва из ответа (если бэк его вернёт), иначе локально выбранное
+        tag_name: data.tag_name || tagName || null,
+        tag: data.tag, // легаси, если вдруг вернётся
         expires_at: data.expires_at || new Date(Date.now() + ttlMinutes * 60000).toISOString()
       });
 
-      // window.open(data.public_url || data.pay_url, '_blank');
       closeModal();
 
     } catch (e) {
@@ -472,145 +478,179 @@
 })();
 </script>
 
-
-
-
-<!-- Скрипт для тегов -->
+{% comment %} теги {% endcomment %}
+<!-- Скрипт для тегов (1 тег, серверная база) -->
 <script>
-    (() => {
-        const el = id => document.getElementById(id);
-        const t = {
-            ctrl: el('tg-control'),
-            chips: el('tg-chips'),
-            input: el('tg-input'),
-            menu: el('tg-menu'),
-            list: el('tg-list'),
-            createRow: el('tg-create-row'),
-            createName: el('tg-create-name'),
-            inlineCreate: el('tg-inline-create'),
-            newName: el('tg-new-name'),
-            addBtn: el('tg-add-btn'),
-            cancelBtn: el('tg-cancel-btn')
-        };
+(() => {
+  const el = id => document.getElementById(id);
+  const t = {
+    ctrl: el('tg-control'),
+    chips: el('tg-chips'),
+    input: el('tg-input'),
+    menu: el('tg-menu'),
+    list: el('tg-list'),
+    createRow: el('tg-create-row'),
+    createName: el('tg-create-name'),
+    inlineCreate: el('tg-inline-create'),
+    newName: el('tg-new-name'),
+    addBtn: el('tg-add-btn'),
+    cancelBtn: el('tg-cancel-btn')
+  };
 
-        const key = 'tags_v2';
-        const saved = JSON.parse(localStorage.getItem(key) || '{}');
-        let tags = saved.tags || [
-            { id: 'design', name: 'Design', color: '#22d3ee' },
-            { id: 'backend', name: 'Backend', color: '#a855f7' },
-            { id: 'frontend', name: 'Frontend', color: '#8b5cf6' },
-            { id: 'urgent', name: 'Urgent', color: '#ef4444' },
-            { id: 'low', name: 'Low Priority', color: '#10b981' },
-            { id: 'research', name: 'Research', color: '#f59e0b' }
-        ];
-        let chosen = new Set(saved.chosen || []);
-        let open = false, focusIndex = -1;
+  let tags = [];          // [{id,name,color}]
+  let chosen = null;      // один выбранный id
+  let open = false, focusIndex = -1;
 
-        const save = () => localStorage.setItem(key, JSON.stringify({ tags, chosen: [...chosen] }));
-        const randColor = () => ['#a855f7', '#22d3ee', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#eab308'][Math.floor(Math.random() * 8)];
-        const slug = s => s.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+  const csrftoken = (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || '';
 
-        const renderChips = () => {
-            t.chips.innerHTML = '';
-            const arr = tags.filter(x => chosen.has(x.id));
-            arr.slice(0, 3).forEach(x => {
-                const c = document.createElement('span');
-                c.className = 'tg-chip';
-                c.innerHTML = `<span class="tg-dot" style="background:${x.color}"></span>${x.name}
-                    <button class="tg-x">×</button>`;
-                c.querySelector('.tg-x').onclick = (e) => { e.stopPropagation(); chosen.delete(x.id); save(); draw(); };
-                t.chips.appendChild(c);
-            });
-            if (arr.length > 3) {
-                const m = document.createElement('span');
-                m.className = 'tg-more';
-                m.textContent = `+${arr.length - 3}`;
-                t.chips.appendChild(m);
-            }
-        };
+  async function fetchTags(q='') {
+    const u = new URL('/payments/api/tags/', window.location.origin);
+    if (q) u.searchParams.set('q', q);
+    const r = await fetch(u, { credentials: 'same-origin' });
+    if (!r.ok) throw new Error('tags fetch failed');
+    const d = await r.json();
+    tags = Array.isArray(d.tags) ? d.tags : [];
+  }
 
-        const rowHtml = (x, q) => {
-            const mark = q ? x.name.replace(new RegExp(`(${q})`, 'i'), '<u>$1</u>') : x.name;
-            return `<div class="tg-row" data-id="${x.id}">
-                <input type="checkbox" ${chosen.has(x.id) ? 'checked' : ''}>
-                <span class="tg-dot" style="background:${x.color}"></span>
-                <div class="tg-title">${mark}</div>
-                </div>`;
-        };
+  async function createTagOnServer(name) {
+    const r = await fetch('/payments/api/tags/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+      body: JSON.stringify({ name })
+    });
+    if (!r.ok) {
+      const text = await r.text().catch(()=> 'create tag failed');
+      throw new Error(text || 'create tag failed');
+    }
+    return await r.json(); // {id,name,color}
+  }
 
-        const drawList = () => {
-            const q = t.input.value.trim();
-            const res = q ? tags.filter(x => x.name.toLowerCase().includes(q.toLowerCase())) : tags;
-            t.list.innerHTML = res.map(x => rowHtml(x, q)).join('') ||
-                `<div class="tg-row"><div class="tg-title" style="color:var(--muted)">Ничего не найдено</div></div>`;
-            [...t.list.querySelectorAll('.tg-row')].forEach((r, i) => { r.onclick = () => toggle(r.dataset.id); r.onmousemove = () => focusIndex = i; });
-            const canCreate = q.length >= 2 && !tags.some(x => x.name.toLowerCase() === q.toLowerCase());
-            t.createRow.style.display = canCreate ? 'flex' : 'none';
-            t.createName.textContent = q;
-        };
+  function renderChips() {
+    t.chips.innerHTML = '';
+    const x = tags.find(x => x.id === chosen);
+    if (!x) return;
+    const c = document.createElement('span');
+    c.className = 'tg-chip';
+    c.innerHTML = `<span class="tg-dot" style="background:${x.color}"></span>${x.name}
+      <button class="tg-x" aria-label="Убрать тег">×</button>`;
+    c.querySelector('.tg-x').onclick = (e) => { e.stopPropagation(); chosen = null; draw(); };
+    t.chips.appendChild(c);
+  }
 
-        const draw = () => { renderChips(); if (open) drawList(); };
-        const toggle = id => { chosen.has(id) ? chosen.delete(id) : chosen.add(id); save(); draw(); };
-        const createTag = name => {
-            const id = slug(name) || ('tag-' + Math.random().toString(36).slice(2, 7));
-            if (tags.some(x => x.id === id) || tags.some(x => x.name.toLowerCase() === name.toLowerCase())) return;
-            const color = randColor();
-            tags.push({ id, name, color });
-            chosen.add(id);
-            save(); t.input.value = ''; draw();
-        };
+  const rowHtml = (x, q) => {
+    const mark = q ? x.name.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'i'), '<u>$1</u>') : x.name;
+    return `<div class="tg-row" data-id="${x.id}">
+      <input type="radio" name="tg-one" ${chosen === x.id ? 'checked' : ''}>
+      <span class="tg-dot" style="background:${x.color}"></span>
+      <div class="tg-title">${mark}</div>
+    </div>`;
+  };
 
-        const openMenu = () => {
-            open = true;
-            t.menu.classList.add('open');
-            t.ctrl.setAttribute('aria-expanded', 'true');
-            drawList();
-            requestAnimationFrame(adjustMenu);
-        };
-        const closeMenu = () => { open = false; t.menu.classList.remove('open'); t.ctrl.setAttribute('aria-expanded', 'false'); t.inlineCreate.style.display = 'none'; };
+  function drawList() {
+    const q = t.input.value.trim();
+    const res = q ? tags.filter(x => x.name.toLowerCase().includes(q.toLowerCase())) : tags;
+    t.list.innerHTML = res.map(x => rowHtml(x, q)).join('') ||
+      `<div class="tg-row"><div class="tg-title" style="color:var(--muted)">Ничего не найдено</div></div>`;
+    [...t.list.querySelectorAll('.tg-row')].forEach((r, i) => {
+      r.onclick = () => { chosen = parseInt(r.dataset.id, 10); draw(); };
+      r.onmousemove = () => focusIndex = i;
+    });
+    const canCreate = q.length >= 2 && !tags.some(x => x.name.toLowerCase() === q.toLowerCase());
+    t.createRow.style.display = canCreate ? 'flex' : 'none';
+    t.createName.textContent = q;
+  }
 
-        // === добавить где-нибудь рядом с объявлениями функций ===
-        function adjustMenu() {
-            // всегда открыть вверх
-            t.menu.style.top = 'auto';
-            t.menu.style.bottom = '100%';
-            t.menu.style.transform = 'translateY(-6px)';
-            // ограничим высоту и дадим скролл
-            const spaceAbove = t.ctrl.getBoundingClientRect().top;
-            // t.menu.style.maxHeight = Math.max(120, Math.floor(spaceAbove - 20)) + 'px';
-        }
+  function draw() { renderChips(); if (open) drawList(); }
 
+  function adjustMenu() {
+    t.menu.style.top = 'auto';
+    t.menu.style.bottom = '100%';
+    t.menu.style.transform = 'translateY(-6px)';
+  }
 
-        // не отдаём прокрутку наружу
-        t.menu.addEventListener('wheel', e => e.stopPropagation(), { passive: false });
-        t.menu.addEventListener('touchmove', e => e.stopPropagation(), { passive: false });
+  async function openMenu() {
+    open = true;
+    t.menu.classList.add('open');
+    t.ctrl.setAttribute('aria-expanded', 'true');
+    await fetchTags(t.input.value.trim());
+    drawList();
+    requestAnimationFrame(adjustMenu);
+  }
 
-        // пересчёт при ресайзе, если меню открыто
-        window.addEventListener('resize', () => {
-            if (t.menu.classList.contains('open')) adjustMenu();
-        });
+  function closeMenu() {
+    open = false;
+    t.menu.classList.remove('open');
+    t.ctrl.setAttribute('aria-expanded', 'false');
+    t.inlineCreate.style.display = 'none';
+  }
 
+  // события
+  t.menu.addEventListener('wheel', e => e.stopPropagation(), { passive: false });
+  t.menu.addEventListener('touchmove', e => e.stopPropagation(), { passive: false });
+  window.addEventListener('resize', () => { if (t.menu.classList.contains('open')) adjustMenu(); });
 
-        t.ctrl.addEventListener('click', () => { open ? t.input.focus() : (openMenu(), t.input.focus()); });
-        t.input.addEventListener('input', drawList);
-        t.input.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const q = t.input.value.trim();
-                const exact = q && tags.some(x => x.name.toLowerCase() === q.toLowerCase());
-                if (q && !exact) { createTag(q); return; }
-                const rows = [...t.list.children];
-                if (focusIndex >= 0 && rows[focusIndex]) rows[focusIndex].click();
-            }
-            if (e.key === 'Escape') { closeMenu(); }
-        });
+  t.ctrl.addEventListener('click', async () => { open ? t.input.focus() : (await openMenu(), t.input.focus()); });
 
-        t.createRow.addEventListener('click', () => { t.inlineCreate.style.display = 'flex'; t.newName.value = t.input.value.trim(); t.newName.focus(); });
-        t.addBtn.addEventListener('click', () => { const v = t.newName.value.trim(); if (v.length >= 2) { createTag(v); t.inlineCreate.style.display = 'none'; } });
-        t.cancelBtn.addEventListener('click', () => t.inlineCreate.style.display = 'none');
-        document.addEventListener('click', e => { if (!e.target.closest('#tg-root')) closeMenu(); });
+  t.input.addEventListener('input', async () => {
+    try { await fetchTags(t.input.value.trim()); } catch(e) {}
+    drawList();
+  });
+
+  t.input.addEventListener('keydown', async e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const q = t.input.value.trim();
+      if (q.length >= 2 && !tags.some(x => x.name.toLowerCase() === q.toLowerCase())) {
+        try {
+          const created = await createTagOnServer(q);
+          tags.push(created);
+          chosen = created.id;
+          t.input.value = '';
+          draw();
+        } catch (err) { /* можно всплывашку */ }
+        return;
+      }
+      const rows = [...t.list.children];
+      if (focusIndex >= 0 && rows[focusIndex]) rows[focusIndex].click();
+    }
+    if (e.key === 'Escape') closeMenu();
+  });
+
+  t.createRow.addEventListener('click', async () => {
+    // инлайн-форма оставлена, но можно создавать сразу без неё
+    t.inlineCreate.style.display = 'flex';
+    t.newName.value = t.input.value.trim();
+    t.newName.focus();
+  });
+
+  t.addBtn.addEventListener('click', async () => {
+    const v = t.newName.value.trim();
+    if (v.length >= 2) {
+      try {
+        const created = await createTagOnServer(v);
+        tags.push(created);
+        chosen = created.id;
+        t.input.value = '';
         draw();
-    })();
+      } finally {
+        t.inlineCreate.style.display = 'none';
+      }
+    }
+  });
+
+  t.cancelBtn.addEventListener('click', () => t.inlineCreate.style.display = 'none');
+  document.addEventListener('click', e => { if (!e.target.closest('#tg-root')) closeMenu(); });
+
+  // экспорт выбранного тега для формы генерации ссылки
+  window.__getChosenTagId = () => chosen;
+  window.__getChosenTagName = () => {
+    const x = tags.find(x => x.id === chosen);
+    return x ? x.name : null;
+  };
+
+  // начальная загрузка
+  fetchTags().then(draw).catch(()=>{});
+})();
 </script>
 
 

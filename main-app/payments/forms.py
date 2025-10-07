@@ -4,7 +4,8 @@ from datetime import datetime
 from django import forms
 from django.conf import settings
 from django.utils import timezone
-from .models import Payment, METHOD_CHOICES
+from django.core.exceptions import ValidationError
+from .models import Payment, METHOD_CHOICES, Tag
 from .services import next_order_id_for
 
 MIN_BY_METHOD = {36: Decimal("50.00"), 35: Decimal("50.00"), 44: Decimal("10.00")}
@@ -14,8 +15,8 @@ class CreateLinkForm(forms.Form):
     amount = forms.DecimalField(min_value=Decimal("0.01"), max_digits=12, decimal_places=2)
     method = forms.ChoiceField(choices=METHOD_CHOICES, initial=44)
     comment = forms.CharField(max_length=140, required=False)
-    tag = forms.CharField(max_length=64, required=False)
     ttl_minutes = forms.IntegerField(min_value=1, max_value=60*24*30, initial=60)
+    tag_id = forms.IntegerField(required=False)
 
     def clean(self):
         c = super().clean()
@@ -23,9 +24,27 @@ class CreateLinkForm(forms.Form):
         amt = c.get("amount") or Decimal("0")
         if amt < MIN_BY_METHOD.get(m, Decimal("50.00")):
             raise forms.ValidationError(f"Минимальная сумма для выбранного метода — {MIN_BY_METHOD[m]} ₽")
+        tid = c.get("tag_id")
+        if tid is not None:
+            if tid == "":
+                c["tag_id"] = None
+            else:
+                try:
+                    tid = int(tid)
+                    c["tag_id"] = tid
+                except (TypeError, ValueError):
+                    raise ValidationError("Некорректный tag_id")
         return c
 
     def save(self, user) -> Payment:
+        tag_obj = None
+        tid = self.cleaned_data.get("tag_id")
+        if tid:
+            try:
+                tag_obj = Tag.objects.get(user=user, id=tid)
+            except Tag.DoesNotExist:
+                tag_obj = None
+
         order_id, seq, prefix, day = next_order_id_for(user)
         idem = uuid.uuid4().hex
 
@@ -56,11 +75,15 @@ class CreateLinkForm(forms.Form):
                     dt = timezone.make_aware(dt, timezone.utc)
                 expires_at = dt
             except Exception:
-                expires_at = timezone.now() + timezone.timedelta(minutes=int(self.cleaned_data["ttl_minutes"]))
+                expires_at = timezone.now() + timezone.timedelta(
+                    minutes=int(self.cleaned_data["ttl_minutes"])
+                )
         else:
-            expires_at = timezone.now() + timezone.timedelta(minutes=int(self.cleaned_data["ttl_minutes"]))
+            expires_at = timezone.now() + timezone.timedelta(
+                minutes=int(self.cleaned_data["ttl_minutes"])
+            )
 
-        return Payment.objects.create(
+        p = Payment.objects.create(
             user=user,
             payment_id=data["payment_id"],
             token=data["token"],
@@ -70,7 +93,7 @@ class CreateLinkForm(forms.Form):
             email=BOT_EMAIL,
             method=int(self.cleaned_data["method"]),
             comment=self.cleaned_data.get("comment", ""),
-            tag=self.cleaned_data.get("tag", ""),
+            tag="",
             status="pending",
             expires_at=expires_at,
             order_prefix=prefix,
@@ -78,3 +101,9 @@ class CreateLinkForm(forms.Form):
             order_seq=seq,
             order_id=order_id,
         )
+
+        if tag_obj:
+            p.tag_obj = tag_obj
+            p.save(update_fields=["tag_obj"])
+
+        return p

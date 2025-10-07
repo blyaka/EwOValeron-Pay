@@ -62,74 +62,87 @@
 
     <section class="ps-wrap">
         <div class="ps-scroll">
-            <table class="ps-table" id="paymentsTable">
-                <thead>
-                    <tr>
-                        <th>Дата</th>
-                        <th>Order ID</th>
-                        <th>Комментарий</th>
-                        <th>Сумма платежа<br><small>(₽)</small></th>
-                        <th>Комиссия<br><small>(₽)</small></th>
-                        <th>К выплате<br><small>(₽)</small></th>
-                        <th>Метод</th>
-                        <th>Статус</th>
-                        <th>intid</th>
-                        <th>tag</th>
-                        {% comment %} <th>Продавец</th> {% endcomment %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in payments %}
-                    <tr>
-                        <td>{{ p.created_at|date:"d.m.Y | H:i" }}</td>
-                        <td><span class="ps-link">#{{ p.order_id }}</span></td>
-                        <td class="clip" title="{{ p.comment }}">{{ p.comment }}</td>
-                        <td class="num">{{ p.amount }}</td>
-                        <td class="num">
-                            {% if p.fee %}
-                                {{ p.fee }} <span class="muted">({{ p.commission_percent }}%)</span>
-                            {% else %}
-                                — <span class="muted">{% if p.status == 'pending' %}(будет при оплате){% endif %}</span>
-                            {% endif %}
-                            </td>
-                        <td class="num">{{ p.payout }}</td>
-                        <td>{{ p.method }}</td>
-                        <td class="status">
-                        {% if p.status|lower == "paid" or p.status|lower == "success" %}
-                        <span class="chk ok" aria-label="ok" title="Успешно">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                        </span>
-                        {% elif p.status|lower == "pending" %}
-                        <span class="chk wait" aria-label="pending" title="Ожидание">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10" opacity=".3"></circle>
-                                <path d="M12 6v6l4 2"></path>
-                            </svg>
-                        </span>
-                        {% else %}
-                        <span class="chk fail" aria-label="{{ p.status }}" title="Ошибка">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </span>
-                        {% endif %}
+<table class="ps-table" id="paymentsTable">
+  <thead>
+    <tr>
+      <th>Дата</th>
+      <th>Order ID</th>
+      <th>Комментарий</th>
+      <th>Сумма платежа<br><small>(₽)</small></th>
+      <th>Комиссия<br><small>(₽)</small></th>
+      <th>К выплате<br><small>(₽)</small></th>
+      <th>Метод</th>
+      <th>Статус</th>
+      <th>intid</th>
+      <th>tag</th>
+      {# <th>Продавец</th> #}
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in payments %}
+    <tr>
+      <td>{{ p.created_at|date:"d.m.Y | H:i" }}</td>
+      <td><span class="ps-link">#{{ p.order_id }}</span></td>
+      <td class="clip" title="{{ p.comment }}">{{ p.comment }}</td>
+      <td class="num">{{ p.amount }}</td>
 
-                        </td>
-                        <td class="mono">{{ p.intid }}</td>
-                        <td class="muted">{{ p.tag }}</td>
-                        <!-- <td>{{ p.seller }}</td> -->
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="11" style="text-align:center;color:var(--muted)">Платежей пока нет</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
+      <td class="num">
+        {% if p.fee is not None %}
+          {{ p.fee }} <span class="muted">({{ p.commission_percent }}%)</span>
+        {% else %}
+          — <span class="muted">{% if p.status|lower == 'pending' %}(будет при оплате){% endif %}</span>
+        {% endif %}
+      </td>
 
-            </table>
+      <td class="num">
+        {% if p.payout is not None %}
+          {{ p.payout }}
+        {% else %}
+          —
+        {% endif %}
+      </td>
+
+      <td>{{ p.method_label }}</td>
+
+      <td class="status">
+        {% if p.status|lower == "paid" or p.status|lower == "success" %}
+          <span class="chk ok" aria-label="ok" title="Успешно">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>
+        {% elif p.status|lower == "pending" %}
+          <span class="chk wait" aria-label="pending" title="Ожидание">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" opacity=".3"></circle>
+              <path d="M12 6v6l4 2"></path>
+            </svg>
+          </span>
+        {% else %}
+          <span class="chk fail" aria-label="{{ p.status }}" title="Ошибка">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </span>
+        {% endif %}
+      </td>
+
+      <td class="mono">{{ p.fk_intid }}</td>
+
+      <td class="muted">
+        {% if p.tag_obj %}{{ p.tag_obj.name }}{% elif p.tag %}{{ p.tag }}{% else %}—{% endif %}
+      </td>
+      {# <td>{{ p.seller }}</td> #}
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="11" style="text-align:center;color:var(--muted)">Платежей пока нет</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
         </div>
     </section>
 
