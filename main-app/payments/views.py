@@ -1,9 +1,9 @@
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django.contrib.auth.decorators import login_required
 from .forms import CreateLinkForm
 import logging
-from .services import next_order_id_for
+from .services import next_order_id_for, preview_next_order_id_for
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +41,13 @@ def generate_link(request):
 
 
 
-@require_POST
+
+@require_GET
 @login_required
-def allocate_order_id(request):
-    order_id, seq, prefix, day = next_order_id_for(request.user)
+def preview_order_id(request):
+    oid, seq, prefix, day = preview_next_order_id_for(request.user)
     return JsonResponse({
-        "order_id": order_id,
+        "order_id": oid,
         "order_seq": seq,
         "order_prefix": prefix,
         "order_date": day.strftime("%Y-%m-%d")
