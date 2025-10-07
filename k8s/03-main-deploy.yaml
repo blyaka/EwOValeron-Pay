@@ -55,7 +55,7 @@ spec:
             value: "24"
         readinessProbe:
           httpGet:
-            path: /
+            path: /health/
             port: 8000
             httpHeaders:
               - name: Host
@@ -67,7 +67,7 @@ spec:
 
         livenessProbe:
           httpGet:
-            path: /
+            path: /health/
             port: 8000
             httpHeaders:
               - name: Host
