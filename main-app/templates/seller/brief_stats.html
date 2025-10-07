@@ -10,17 +10,8 @@
 {% block content %}
 
 
-<div class="sub-nav-lk-container">
-    <div class="sub-nav-lk">
-        <a href="{% url 'brief-stats' %}">Краткая статистика</a>
-        <a href="{% url 'payment-status' %}">Статус платежей</a>
-        <a href="">Выводы</a>
-        <a href="">Генерация отчета</a>
-        <a href="">Уведомления</a>
-        <a href="{% url 'payment-links' %}">Платежные ссылки</a>
-        <a href="">История чарж-беков</a>
-    </div>
-</div>
+{% include 'includes/sub_nav_lk.html' %}
+
 
 <main>
 
