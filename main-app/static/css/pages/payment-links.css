@@ -29,7 +29,7 @@ body.modal-open {
     position: relative;
     z-index: 2;
     width: 460px;
-    background: #0b0b0d;
+    background: #101010;
     border: 1px solid var(--line);
     border-radius: 14px;
     padding: 32px;
@@ -87,6 +87,7 @@ body.modal-open {
 .order-label {
     margin: 0 !important;
 }
+
 .order-id {
     font-size: 1.2rem;
     font-weight: 600;
@@ -157,12 +158,13 @@ body.modal-open {
     right: 0;
     top: 100%;
     transform: translateY(6px);
-    background: #0f1016;
+    background: var(--bg);
     border: 1px solid var(--line);
     border-radius: 10px;
     box-shadow: var(--glow);
     padding: 6px;
     z-index: 30;
+    gap: 6px;
     display: none;
     max-height: min(240px, 40vh);
     overflow: auto;
@@ -171,7 +173,8 @@ body.modal-open {
 }
 
 .pm-select.open .pm-menu {
-    display: block
+    display: flex;
+    flex-direction: column;
 }
 
 .pm-item {
@@ -189,7 +192,7 @@ body.modal-open {
 }
 
 .pm-item:hover {
-    background: #141826
+    background: #ff2a4e76
 }
 
 
@@ -230,7 +233,7 @@ body.modal-open {
     padding: 10px 12px;
     border: 1px solid var(--stroke);
     border-radius: 12px;
-    background: linear-gradient(180deg, #0f1014, #0b0b0d);
+    background: rgba(255, 255, 255, .03);
     cursor: text;
     min-height: 48px
 }
@@ -240,13 +243,17 @@ body.modal-open {
     outline-offset: 2px
 }
 
+span#tg-chips {
+    display: contents;
+}
+
 .tg-chip {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     padding: 6px 10px;
     border-radius: 999px;
-    background: #171922;
+    background: var(--accent);
     border: 1px solid var(--stroke);
     font-size: 13px;
     white-space: nowrap
@@ -295,7 +302,7 @@ body.modal-open {
     right: 0;
     bottom: 100%;
     transform: translateY(-6px);
-    background: #0f1016;
+    background: var(--bg);
     border: 1px solid var(--stroke);
     border-radius: 12px;
     box-shadow: var(--shadow);
@@ -322,7 +329,7 @@ body.modal-open {
 }
 
 .tg-row:hover {
-    background: #141826
+    background: #ff2a4e76
 }
 
 .tg-row input {
@@ -345,9 +352,14 @@ body.modal-open {
 }
 
 .tg-create {
+    border-radius: 10px;
     display: flex;
     gap: 8px;
     padding: 8px
+}
+
+.tg-create:hover {
+    background: #ff2a4e76
 }
 
 .tg-create input {

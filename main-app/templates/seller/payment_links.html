@@ -529,12 +529,6 @@
                 m.textContent = `+${arr.length - 3}`;
                 t.chips.appendChild(m);
             }
-            if (!arr.length) {
-                const ph = document.createElement('span');
-                ph.className = 'tg-placeholder';
-                ph.textContent = 'Теги не выбраны';
-                t.chips.appendChild(ph);
-            }
         };
 
         const rowHtml = (x, q) => {
