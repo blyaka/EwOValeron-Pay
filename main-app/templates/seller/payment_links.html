@@ -220,6 +220,12 @@
             </div>
 
             <div class="form-row">
+              <label for="buyerEmail">Email покупателя</label>
+              <input type="email" id="buyerEmail" name="email" placeholder="client@example.com" required>
+              <p class="hint">На этот адрес придёт платёжная информация.</p>
+            </div>
+
+            <div class="form-row">
                 <label for="payMethod">Способ оплаты</label>
                 <div class="pm-select" id="pm">
                     <input type="hidden" id="payMethod" value="sbp">
@@ -347,6 +353,7 @@
   const genBtn = $('#genBtn');
   const tbody = document.querySelector('#paymentsTable tbody');
   const payMethodKeyEl = $('#payMethod');
+  const buyerEmail = $('#buyerEmail'); // <— НОВОЕ
   let __scrollY = 0;
 
   const METHOD_MAP = { sbp: 44, card: 36, sberpay: 35 };
@@ -440,8 +447,8 @@
   }
   function closeModal() { modal.classList.remove('show'); unlockBody(); }
 
-  openBtn.addEventListener('click', e => { e.preventDefault(); openModal(); });
-  closeBtn.addEventListener('click', closeModal);
+  openBtn?.addEventListener('click', e => { e.preventDefault(); openModal(); });
+  closeBtn?.addEventListener('click', closeModal);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
   // --- TTL hint ---
@@ -451,7 +458,7 @@
   }));
 
   // --- copy in table ---
-  tbody.addEventListener('click', async (e) => {
+  tbody?.addEventListener('click', async (e) => {
     const btn = e.target.closest('.copy-btn');
     if (!btn) return;
     try {
@@ -462,28 +469,37 @@
   });
 
   // --- generate link ---
-  genBtn.addEventListener('click', async () => {
+  genBtn?.addEventListener('click', async () => {
     const amount = ($('#amount').value || '').trim();
     const comment = ($('#comment').value || '').trim();
+    const email = (buyerEmail?.value || '').trim();
     const methodKey = (payMethodKeyEl.value || 'sbp').toLowerCase();
     const method = METHOD_MAP[methodKey] || 44;
 
-    // получаем выбранный тег из селектора (должен быть определён твоим скриптом тегов)
     const tagId = (window.__getChosenTagId ? window.__getChosenTagId() : null);
-    const tagName = (window.__getChosenTagName ? window.__getChosenTagName() : null); // опционально, если экспортируешь
+    const tagName = (window.__getChosenTagName ? window.__getChosenTagName() : null);
 
     if (!amount || Number(amount) <= 0) { alert('Введите сумму'); return; }
 
     const ttlMinutes = (+(expH.value || 0) * 60) + (+(expM.value || 0));
     if (!ttlMinutes || ttlMinutes < 1) { alert('Укажи время жизни ссылки'); return; }
 
+    if (!email) { alert('Укажите email покупателя'); return; }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(email)) { alert('Некорректный email'); return; }
+
     const body = new URLSearchParams({
       amount,
       method,
       comment,
       ttl_minutes: String(ttlMinutes),
+      email,
       ...(tagId ? { tag_id: String(tagId) } : {})
     });
+
+    genBtn.disabled = true;
+    const prevText = genBtn.textContent;
+    genBtn.textContent = 'Генерация…';
 
     try {
       const resp = await fetch("{% url 'generate_link' %}", {
@@ -507,9 +523,8 @@
         public_url: data.public_url || data.pay_url,
         amount: data.amount,
         comment: data.comment,
-        // покажем имя тега: сперва из ответа (если бэк его вернёт), иначе локально выбранное
         tag_name: data.tag_name || tagName || null,
-        tag: data.tag, // легаси, если вдруг вернётся
+        tag: data.tag,
         expires_at: data.expires_at || new Date(Date.now() + ttlMinutes * 60000).toISOString()
       });
 
@@ -517,10 +532,15 @@
 
     } catch (e) {
       alert('Ошибка: ' + e.message);
+    } finally {
+      genBtn.disabled = false;
+      genBtn.textContent = prevText;
     }
   });
 })();
 </script>
+
+
 
 {% comment %} теги {% endcomment %}
 <!-- Скрипт для тегов (1 тег, серверная база) -->

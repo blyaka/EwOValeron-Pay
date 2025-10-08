@@ -9,7 +9,8 @@ from .models import Payment, METHOD_CHOICES, Tag
 from .services import next_order_id_for
 
 MIN_BY_METHOD = {36: Decimal("50.00"), 35: Decimal("50.00"), 44: Decimal("10.00")}
-BOT_EMAIL = "evopay_alert_bot@telegram.org"
+# BOT_EMAIL = "evopay_alert_bot@telegram.org"
+
 
 class CreateLinkForm(forms.Form):
     amount = forms.DecimalField(min_value=Decimal("0.01"), max_digits=12, decimal_places=2)
@@ -17,6 +18,7 @@ class CreateLinkForm(forms.Form):
     comment = forms.CharField(max_length=140, required=False)
     ttl_minutes = forms.IntegerField(min_value=1, max_value=60*24*30, initial=60)
     tag_id = forms.IntegerField(required=False)
+    email = forms.EmailField(required=True)  # <<<< новое обязательное поле
 
     def clean(self):
         c = super().clean()
@@ -30,10 +32,9 @@ class CreateLinkForm(forms.Form):
                 c["tag_id"] = None
             else:
                 try:
-                    tid = int(tid)
-                    c["tag_id"] = tid
+                    c["tag_id"] = int(tid)
                 except (TypeError, ValueError):
-                    raise ValidationError("Некорректный tag_id")
+                    raise forms.ValidationError("Некорректный tag_id")
         return c
 
     def save(self, user) -> Payment:
@@ -50,7 +51,7 @@ class CreateLinkForm(forms.Form):
 
         payload = {
             "amount": float(self.cleaned_data["amount"]),
-            "email": BOT_EMAIL,
+            "email": self.cleaned_data["email"],          # <<<< прокидываем email покупателя
             "ip": "0.0.0.0",
             "payment_method": int(self.cleaned_data["method"]),
             "description": self.cleaned_data.get("comment") or "",
@@ -75,13 +76,9 @@ class CreateLinkForm(forms.Form):
                     dt = timezone.make_aware(dt, timezone.utc)
                 expires_at = dt
             except Exception:
-                expires_at = timezone.now() + timezone.timedelta(
-                    minutes=int(self.cleaned_data["ttl_minutes"])
-                )
+                expires_at = timezone.now() + timezone.timedelta(minutes=int(self.cleaned_data["ttl_minutes"]))
         else:
-            expires_at = timezone.now() + timezone.timedelta(
-                minutes=int(self.cleaned_data["ttl_minutes"])
-            )
+            expires_at = timezone.now() + timezone.timedelta(minutes=int(self.cleaned_data["ttl_minutes"]))
 
         p = Payment.objects.create(
             user=user,
@@ -90,7 +87,7 @@ class CreateLinkForm(forms.Form):
             fk_url=data["fk_url"],
             public_url=data["public_url"],
             amount=self.cleaned_data["amount"],
-            email=BOT_EMAIL,
+            email=self.cleaned_data["email"],
             method=int(self.cleaned_data["method"]),
             comment=self.cleaned_data.get("comment", ""),
             tag="",
