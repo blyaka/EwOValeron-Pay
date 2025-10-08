@@ -16,264 +16,316 @@
 
 <main>
 
-    <section class="ps-filters">
-        <div class="ps-filters-container">
-            <button class="f-icon" id="filtersReset" aria-label="Сбросить фильтры" title="Сбросить фильтры">
-                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                    <path fill="currentColor" d="M3 5h18l-6.5 7.5v5.75l-5 2.5V12.5L3 5z" />
+  <section class="ps-filters">
+
+    <button class="ps-filters-toggle" type="button" aria-expanded="false">
+      <span>Фильтры</span>
+      <svg class="chev" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M6.7 8.7a1 1 0 0 1 1.4 0L12 12.6l3.9-3.9a1 1 0 1 1 1.4 1.4l-4.6 4.6a1 1 0 0 1-1.4 0L6.7 10.1a1 1 0 0 1 0-1.4z"
+          fill="currentColor" />
+      </svg>
+    </button>
+
+
+    <div class="ps-filters-container">
+      <button class="f-icon" id="filtersReset" aria-label="Сбросить фильтры" title="Сбросить фильтры">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M3 5h18l-6.5 7.5v5.75l-5 2.5V12.5L3 5z" />
+        </svg>
+      </button>
+
+      <label class="chip chip--toggle" data-chip="date">
+        <span class="chip__title">Дата</span>
+        <span class="chip__body">
+          <input type="date" id="fDateFrom" placeholder="с">
+          <input type="date" id="fDateTo" placeholder="по">
+        </span>
+      </label>
+
+      <!-- Сумма -->
+      <label class="chip chip--toggle" data-chip="amount">
+        <span class="chip__title">Сумма платежа</span>
+        <span class="chip__body">
+          <input type="number" id="fAmtMin" inputmode="numeric" placeholder="от">
+          <input type="number" id="fAmtMax" inputmode="numeric" placeholder="до">
+        </span>
+      </label>
+
+      <!-- Tag -->
+      <label class="chip chip--toggle" data-chip="tag">
+        <span class="chip__title">Tag</span>
+        <span class="chip__body">
+          <input type="text" id="fTagName" placeholder="Тег (учёт регистра)">
+        </span>
+      </label>
+
+
+      <label class="chip grow">
+        <input type="text" id="fOrder" placeholder="Точечный поиск по: Order ID">
+      </label>
+
+      <label class="chip grow">
+        <input type="text" id="fComment" placeholder="Поиск по: Комментарию">
+      </label>
+    </div>
+  </section>
+
+
+  <!-- Скрипт для мобильных фильтров -->
+  <script>
+    (() => {
+      const section = document.querySelector('.ps-filters');
+      if (!section) return;
+      const toggle = section.querySelector('.ps-filters-toggle');
+      const box = section.querySelector('.ps-filters-container');
+
+      const mq = window.matchMedia('(max-width: 767px)');
+      const setup = () => {
+        if (mq.matches) {
+          box.hidden = true;
+          section.classList.remove('is-open');
+          toggle.setAttribute('aria-expanded', 'false');
+        } else {
+          box.hidden = false;
+          box.style.maxHeight = 'none';
+          section.classList.remove('is-open');
+          toggle.setAttribute('aria-expanded', 'true');
+        }
+      };
+      setup();
+      mq.addEventListener('change', setup);
+
+      toggle.addEventListener('click', () => {
+        const open = section.classList.toggle('is-open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        box.hidden = !open;
+      });
+    })();
+  </script>
+
+
+
+  <section class="ps-wrap">
+    <div class="ps-scroll">
+      <table class="ps-table" id="paymentsTable">
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Order ID</th>
+            <th>Комментарий</th>
+            <th>Сумма платежа<br><small>(₽)</small></th>
+            <th>Комиссия<br><small>(₽)</small></th>
+            <th>К выплате<br><small>(₽)</small></th>
+            <th>Метод</th>
+            <th>Статус</th>
+            <th>intid</th>
+            <th>tag</th>
+            {# <th>Продавец</th> #}
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in payments %}
+          <tr>
+            <td>{{ p.created_at|date:"d.m.Y | H:i" }}</td>
+            <td><span class="ps-link">{{ p.order_id }}</span></td>
+            <td class="clip" title="{{ p.comment }}">{{ p.comment }}</td>
+            <td class="num">{{ p.amount }}</td>
+
+            <td class="num">
+              {% if p.fee is not None %}
+              {{ p.fee }} <span class="muted">({{ p.commission_percent }}%)</span>
+              {% else %}
+              — <span class="muted">{% if p.status|lower == 'pending' %}(будет при оплате){% endif %}</span>
+              {% endif %}
+            </td>
+
+            <td class="num">
+              {% if p.payout is not None %}
+              {{ p.payout }}
+              {% else %}
+              —
+              {% endif %}
+            </td>
+
+            <td>{{ p.method_label }}</td>
+
+            <td class="status">
+              {% if p.status|lower == "paid" or p.status|lower == "success" %}
+              <span class="chk ok" aria-label="ok" title="Успешно">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
-            </button>
+              </span>
+              {% elif p.status|lower == "pending" %}
+              <span class="chk wait" aria-label="pending" title="Ожидание">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" opacity=".3"></circle>
+                  <path d="M12 6v6l4 2"></path>
+                </svg>
+              </span>
+              {% else %}
+              <span class="chk fail" aria-label="{{ p.status }}" title="Ошибка">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </span>
+              {% endif %}
+            </td>
 
-            <label class="chip chip--toggle" data-chip="date">
-                <span class="chip__title">Дата</span>
-                <span class="chip__body">
-                    <input type="date" id="fDateFrom" placeholder="с">
-                    <input type="date" id="fDateTo" placeholder="по">
-                </span>
-            </label>
+            <td class="mono">{{ p.fk_intid }}</td>
 
-            <!-- Сумма -->
-            <label class="chip chip--toggle" data-chip="amount">
-                <span class="chip__title">Сумма платежа</span>
-                <span class="chip__body">
-                    <input type="number" id="fAmtMin" inputmode="numeric" placeholder="от">
-                    <input type="number" id="fAmtMax" inputmode="numeric" placeholder="до">
-                </span>
-            </label>
+            <td class="muted">
+              {% if p.tag_obj %}{{ p.tag_obj.name }}{% elif p.tag %}{{ p.tag }}{% else %}—{% endif %}
+            </td>
+            {# <td>{{ p.seller }}</td> #}
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="11" style="text-align:center;color:var(--muted)">Платежей пока нет</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
 
-            <!-- Tag -->
-            <label class="chip chip--toggle" data-chip="tag">
-                <span class="chip__title">Tag</span>
-                <span class="chip__body">
-                    <input type="text" id="fTagName" placeholder="Тег (учёт регистра)">
-                </span>
-            </label>
-
-
-            <label class="chip grow">
-                <input type="text" id="fOrder" placeholder="Точечный поиск по: Order ID">
-            </label>
-
-            <label class="chip grow">
-                <input type="text" id="fComment" placeholder="Поиск по: Комментарию">
-            </label>
-        </div>
-    </section>
-
-
-    <section class="ps-wrap">
-        <div class="ps-scroll">
-<table class="ps-table" id="paymentsTable">
-  <thead>
-    <tr>
-      <th>Дата</th>
-      <th>Order ID</th>
-      <th>Комментарий</th>
-      <th>Сумма платежа<br><small>(₽)</small></th>
-      <th>Комиссия<br><small>(₽)</small></th>
-      <th>К выплате<br><small>(₽)</small></th>
-      <th>Метод</th>
-      <th>Статус</th>
-      <th>intid</th>
-      <th>tag</th>
-      {# <th>Продавец</th> #}
-    </tr>
-  </thead>
-  <tbody>
-    {% for p in payments %}
-    <tr>
-      <td>{{ p.created_at|date:"d.m.Y | H:i" }}</td>
-      <td><span class="ps-link">{{ p.order_id }}</span></td>
-      <td class="clip" title="{{ p.comment }}">{{ p.comment }}</td>
-      <td class="num">{{ p.amount }}</td>
-
-      <td class="num">
-        {% if p.fee is not None %}
-          {{ p.fee }} <span class="muted">({{ p.commission_percent }}%)</span>
-        {% else %}
-          — <span class="muted">{% if p.status|lower == 'pending' %}(будет при оплате){% endif %}</span>
-        {% endif %}
-      </td>
-
-      <td class="num">
-        {% if p.payout is not None %}
-          {{ p.payout }}
-        {% else %}
-          —
-        {% endif %}
-      </td>
-
-      <td>{{ p.method_label }}</td>
-
-      <td class="status">
-        {% if p.status|lower == "paid" or p.status|lower == "success" %}
-          <span class="chk ok" aria-label="ok" title="Успешно">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </span>
-        {% elif p.status|lower == "pending" %}
-          <span class="chk wait" aria-label="pending" title="Ожидание">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10" opacity=".3"></circle>
-              <path d="M12 6v6l4 2"></path>
-            </svg>
-          </span>
-        {% else %}
-          <span class="chk fail" aria-label="{{ p.status }}" title="Ошибка">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </span>
-        {% endif %}
-      </td>
-
-      <td class="mono">{{ p.fk_intid }}</td>
-
-      <td class="muted">
-        {% if p.tag_obj %}{{ p.tag_obj.name }}{% elif p.tag %}{{ p.tag }}{% else %}—{% endif %}
-      </td>
-      {# <td>{{ p.seller }}</td> #}
-    </tr>
-    {% empty %}
-    <tr>
-      <td colspan="11" style="text-align:center;color:var(--muted)">Платежей пока нет</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-        </div>
-    </section>
+    </div>
+  </section>
 
 
 
-<div class="pagination" data-prev="{{ prev_url }}" data-next="{{ next_url }}">
-    <button class="page-btn prev" aria-label="Предыдущая"
-            {% if not page_obj.has_previous %}disabled aria-disabled="true"{% endif %}>
-            <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg">
-                <path d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z" fill="white"/>
-            </svg>
+  <div class="pagination" data-prev="{{ prev_url }}" data-next="{{ next_url }}">
+    <button class="page-btn prev" aria-label="Предыдущая" {% if not page_obj.has_previous %}disabled
+      aria-disabled="true" {% endif %}>
+      <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
+          fill="white" />
+      </svg>
     </button>
 
     {% for p in pages %}
-        {% if p.disabled %}
-            <a href="#" class="page-num disabled" tabindex="-1" aria-disabled="true">…</a>
-        {% else %}
-            <a href="{{ p.url }}" class="page-num{% if p.active %} active{% endif %}">{{ p.label }}</a>
-        {% endif %}
+    {% if p.disabled %}
+    <a href="#" class="page-num disabled" tabindex="-1" aria-disabled="true">…</a>
+    {% else %}
+    <a href="{{ p.url }}" class="page-num{% if p.active %} active{% endif %}">{{ p.label }}</a>
+    {% endif %}
     {% endfor %}
 
-    <button class="page-btn next" aria-label="Следующая"
-            {% if not page_obj.has_next %}disabled aria-disabled="true"{% endif %}>
-            <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(180deg);">
-                <path d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z" fill="white"/>
-            </svg>
+    <button class="page-btn next" aria-label="Следующая" {% if not page_obj.has_next %}disabled aria-disabled="true" {% endif %}>
+      <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg"
+        style="transform: rotate(180deg);">
+        <path
+          d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
+          fill="white" />
+      </svg>
     </button>
-</div>
+  </div>
 
 
 
-<script>
-  (function () {
-    const wrap = document.querySelector('.pagination');
-    if (!wrap) return;
-    const go = (url) => url && (window.location.href = url);
+  <script>
+    (function () {
+      const wrap = document.querySelector('.pagination');
+      if (!wrap) return;
+      const go = (url) => url && (window.location.href = url);
 
-    const prev = wrap.querySelector('.prev');
-    const next = wrap.querySelector('.next');
+      const prev = wrap.querySelector('.prev');
+      const next = wrap.querySelector('.next');
 
-    if (prev) prev.addEventListener('click', () => {
-      if (!prev.hasAttribute('disabled')) go(wrap.dataset.prev);
-    });
+      if (prev) prev.addEventListener('click', () => {
+        if (!prev.hasAttribute('disabled')) go(wrap.dataset.prev);
+      });
 
-    if (next) next.addEventListener('click', () => {
-      if (!next.hasAttribute('disabled')) go(wrap.dataset.next);
-    });
-  })();
-</script>
+      if (next) next.addEventListener('click', () => {
+        if (!next.hasAttribute('disabled')) go(wrap.dataset.next);
+      });
+    })();
+  </script>
 
-<script>
-(function () {
-  const qs = new URLSearchParams(location.search);
-  const setParam = (k, v) => { if (!v) qs.delete(k); else qs.set(k, v); };
-  const apply = () => { qs.delete('page'); location.search = qs.toString(); };
-  const debounce = (fn, ms=700) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
+  <script>
+    (function () {
+      const qs = new URLSearchParams(location.search);
+      const setParam = (k, v) => { if (!v) qs.delete(k); else qs.set(k, v); };
+      const apply = () => { qs.delete('page'); location.search = qs.toString(); };
+      const debounce = (fn, ms = 700) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
-  // refs
-  const fDateFrom = document.getElementById('fDateFrom');
-  const fDateTo   = document.getElementById('fDateTo');
-  const fAmtMin   = document.getElementById('fAmtMin');
-  const fAmtMax   = document.getElementById('fAmtMax');
-  const fOrder    = document.getElementById('fOrder');
-  const fComment  = document.getElementById('fComment');
-  const fTagName  = document.getElementById('fTagName');
-  const btnReset  = document.getElementById('filtersReset');
+      // refs
+      const fDateFrom = document.getElementById('fDateFrom');
+      const fDateTo = document.getElementById('fDateTo');
+      const fAmtMin = document.getElementById('fAmtMin');
+      const fAmtMax = document.getElementById('fAmtMax');
+      const fOrder = document.getElementById('fOrder');
+      const fComment = document.getElementById('fComment');
+      const fTagName = document.getElementById('fTagName');
+      const btnReset = document.getElementById('filtersReset');
 
-  // ==== аккордеоны чипов
-  function toggleChip(chip, forceOpen = null) {
-    const need = (forceOpen === null) ? !chip.classList.contains('open') : !!forceOpen;
-    chip.classList.toggle('open', need);
-    if (need) {
-      const inp = chip.querySelector('.chip__body input, .chip__body button');
-      if (inp) setTimeout(()=>inp.focus(),0);
-    }
-  }
-  function hydrateChipsByValues() {
-    document.querySelectorAll('.chip--toggle').forEach(chip => {
-      const hasValue = [...chip.querySelectorAll('.chip__body input')]
-        .some(i => i.type!=='hidden' && i.value && String(i.value).trim()!=='');
-      chip.classList.toggle('open', hasValue);
-    });
-  }
-  document.querySelectorAll('.chip--toggle').forEach(chip => {
-    chip.addEventListener('click', (e) => {
-      if (e.target.closest('.chip__body')) return; // клики внутри — не сворачивать
-      toggleChip(chip);
-    });
-    chip.querySelectorAll('input,button').forEach(el => el.addEventListener('click', e => e.stopPropagation()));
-  });
+      // ==== аккордеоны чипов
+      function toggleChip(chip, forceOpen = null) {
+        const need = (forceOpen === null) ? !chip.classList.contains('open') : !!forceOpen;
+        chip.classList.toggle('open', need);
+        if (need) {
+          const inp = chip.querySelector('.chip__body input, .chip__body button');
+          if (inp) setTimeout(() => inp.focus(), 0);
+        }
+      }
+      function hydrateChipsByValues() {
+        document.querySelectorAll('.chip--toggle').forEach(chip => {
+          const hasValue = [...chip.querySelectorAll('.chip__body input')]
+            .some(i => i.type !== 'hidden' && i.value && String(i.value).trim() !== '');
+          chip.classList.toggle('open', hasValue);
+        });
+      }
+      document.querySelectorAll('.chip--toggle').forEach(chip => {
+        chip.addEventListener('click', (e) => {
+          if (e.target.closest('.chip__body')) return; // клики внутри — не сворачивать
+          toggleChip(chip);
+        });
+        chip.querySelectorAll('input,button').forEach(el => el.addEventListener('click', e => e.stopPropagation()));
+      });
 
-  // ==== инициализация из URL
-  if (qs.get('date_from')) fDateFrom.value = qs.get('date_from');
-  if (qs.get('date_to'))   fDateTo.value   = qs.get('date_to');
-  if (qs.get('amt_min'))   fAmtMin.value   = qs.get('amt_min');
-  if (qs.get('amt_max'))   fAmtMax.value   = qs.get('amt_max');
-  if (qs.get('order_id'))  fOrder.value    = qs.get('order_id');
-  if (qs.get('comment'))   fComment.value  = qs.get('comment');
-  if (qs.get('tag'))       fTagName.value  = qs.get('tag');
+      // ==== инициализация из URL
+      if (qs.get('date_from')) fDateFrom.value = qs.get('date_from');
+      if (qs.get('date_to')) fDateTo.value = qs.get('date_to');
+      if (qs.get('amt_min')) fAmtMin.value = qs.get('amt_min');
+      if (qs.get('amt_max')) fAmtMax.value = qs.get('amt_max');
+      if (qs.get('order_id')) fOrder.value = qs.get('order_id');
+      if (qs.get('comment')) fComment.value = qs.get('comment');
+      if (qs.get('tag')) fTagName.value = qs.get('tag');
 
-  hydrateChipsByValues();
+      hydrateChipsByValues();
 
-  // ==== Комментарий — живая фильтрация
-  fComment.addEventListener('input', debounce(() => {
-    setParam('comment', fComment.value.trim());
-    apply();
-  }, 700));
+      // ==== Комментарий — живая фильтрация
+      fComment.addEventListener('input', debounce(() => {
+        setParam('comment', fComment.value.trim());
+        apply();
+      }, 700));
 
-  // ==== Остальные — только по Enter
-  const onEnter = (fn) => (e)=>{ if (e.key === 'Enter') { e.preventDefault(); fn(); } };
+      // ==== Остальные — только по Enter
+      const onEnter = (fn) => (e) => { if (e.key === 'Enter') { e.preventDefault(); fn(); } };
 
-  const applyDates   = () => { setParam('date_from', fDateFrom.value); setParam('date_to', fDateTo.value); apply(); };
-  const applyAmounts = () => { setParam('amt_min', fAmtMin.value); setParam('amt_max', fAmtMax.value); apply(); };
-  const applyOrder   = () => { setParam('order_id', fOrder.value.trim()); apply(); };
-  const applyTag     = () => { setParam('tag', fTagName.value.trim()); apply(); }; // строгий матч на бэке
+      const applyDates = () => { setParam('date_from', fDateFrom.value); setParam('date_to', fDateTo.value); apply(); };
+      const applyAmounts = () => { setParam('amt_min', fAmtMin.value); setParam('amt_max', fAmtMax.value); apply(); };
+      const applyOrder = () => { setParam('order_id', fOrder.value.trim()); apply(); };
+      const applyTag = () => { setParam('tag', fTagName.value.trim()); apply(); }; // строгий матч на бэке
 
-  fDateFrom.addEventListener('keydown', onEnter(applyDates));
-  fDateTo  .addEventListener('keydown', onEnter(applyDates));
-  fAmtMin  .addEventListener('keydown', onEnter(applyAmounts));
-  fAmtMax  .addEventListener('keydown', onEnter(applyAmounts));
-  fOrder   .addEventListener('keydown', onEnter(applyOrder));
-  fTagName .addEventListener('keydown', onEnter(applyTag));
+      fDateFrom.addEventListener('keydown', onEnter(applyDates));
+      fDateTo.addEventListener('keydown', onEnter(applyDates));
+      fAmtMin.addEventListener('keydown', onEnter(applyAmounts));
+      fAmtMax.addEventListener('keydown', onEnter(applyAmounts));
+      fOrder.addEventListener('keydown', onEnter(applyOrder));
+      fTagName.addEventListener('keydown', onEnter(applyTag));
 
-  // ==== Reset
-  btnReset.addEventListener('click', () => {
-    ['date_from','date_to','amt_min','amt_max','tag','order_id','comment','page'].forEach(k => qs.delete(k));
-    apply();
-  });
-})();
-</script>
+      // ==== Reset
+      btnReset.addEventListener('click', () => {
+        ['date_from', 'date_to', 'amt_min', 'amt_max', 'tag', 'order_id', 'comment', 'page'].forEach(k => qs.delete(k));
+        apply();
+      });
+    })();
+  </script>
 
 
 
