@@ -12,7 +12,7 @@ spec:
       containers:
       - name: api
         image: docker.io/b1yaka/ewovaleron-pay-api:latest
-        command: ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000","--no-access-log"]
+        command: ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]
         ports: [{ containerPort: 8000 }]
         env:
         - { name: DATABASE_URL, value: "postgresql://postgres:postgres@pg.evpay.svc.cluster.local:5432/ev_pay" }
@@ -25,6 +25,8 @@ spec:
         - { name: PAY_INTERNAL_TOKEN, value: "3cf592a2dfe6ef7297f567e134e791bf9a87e8d13adb63ba15103129772d7e81" }
         - { name: IDEMP_TTL_SEC, value: "86400" }
         - { name: PAY_LINK_TTL_HOURS, value: "24" }
+        - { name: LOG_BODY, value: "1" }
+        - { name: LOG_BODY_MAX, value: "16384" }
         readinessProbe:
           httpGet: { path: /health, port: 8000 }
           initialDelaySeconds: 5
