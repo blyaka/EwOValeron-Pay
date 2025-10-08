@@ -89,7 +89,7 @@
                     {% for p in payments %}
                     <tr>
                         <td>{{ p.created_at|date:"d.m.Y | H:i" }}</td>
-                        <td>#{{ p.order_id }}</td>
+                        <td>{{ p.order_id }}</td>
                         <td>{{ p.amount }}</td>
                         <td>{{ p.comment|default:"" }}</td>
                         <td>
@@ -115,28 +115,30 @@
 
 
 
-    <div class="pagination">
-        <button class="page-btn prev" aria-label="Предыдущая">
-            <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg">
-                <path
-                    d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
-                    fill="white" />
-            </svg>
+      <div class="pagination" data-prev="{{ prev_url }}" data-next="{{ next_url }}">
+        <button class="page-btn prev" aria-label="Предыдущая"
+                {% if not page_obj.has_previous %}disabled aria-disabled="true"{% endif %}>
+          <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z" fill="white"/>
+          </svg>
         </button>
 
-        <a href="#" class="page-num">1</a>
-        <a href="#" class="page-num active">2</a>
-        <a href="#" class="page-num">3</a>
+        {% for p in pages %}
+          {% if p.disabled %}
+            <a href="#" class="page-num disabled" tabindex="-1" aria-disabled="true">…</a>
+          {% else %}
+            <a href="{{ p.url }}" class="page-num{% if p.active %} active{% endif %}">{{ p.label }}</a>
+          {% endif %}
+        {% endfor %}
 
-        <button class="page-btn next" aria-label="Следующая">
-            <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg"
-                style="transform: rotate(180deg);">
-                <path
-                    d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
-                    fill="white" />
-            </svg>
+        <button class="page-btn next" aria-label="Следующая"
+                {% if not page_obj.has_next %}disabled aria-disabled="true"{% endif %}>
+          <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(180deg);">
+            <path d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z" fill="white"/>
+          </svg>
         </button>
-    </div>
+      </div>
+
 
 
 
@@ -653,6 +655,100 @@
 })();
 </script>
 
+
+
+{% comment %} фильтры {% endcomment %}
+<script>
+(function () {
+  const qs = new URLSearchParams(location.search);
+  const setParam = (k, v) => { if (!v) qs.delete(k); else qs.set(k, v); };
+  const apply = () => { qs.delete('page'); location.search = qs.toString(); };
+  const debounce = (fn, ms=700) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
+
+  // refs
+  const fDateFrom = document.getElementById('fDateFrom');
+  const fDateTo   = document.getElementById('fDateTo');
+  const fAmtMin   = document.getElementById('fAmtMin');
+  const fAmtMax   = document.getElementById('fAmtMax');
+  const fOrder    = document.getElementById('fOrder');
+  const fComment  = document.getElementById('fComment');
+  const fTagName  = document.getElementById('fTagName') || document.getElementById('fTag'); // оба варианта
+  const btnReset  = document.getElementById('filtersReset');
+
+  // аккордеоны
+  function toggleChip(chip, forceOpen = null) {
+    const need = (forceOpen === null) ? !chip.classList.contains('open') : !!forceOpen;
+    chip.classList.toggle('open', need);
+    if (need) {
+      const inp = chip.querySelector('.chip__body input, .chip__body button');
+      if (inp) setTimeout(()=>inp.focus(),0);
+    }
+  }
+  function hydrateChipsByValues() {
+    document.querySelectorAll('.chip--toggle').forEach(chip => {
+      const hasValue = [...chip.querySelectorAll('.chip__body input')]
+        .some(i => i.type!=='hidden' && i.value && String(i.value).trim()!=='');
+      chip.classList.toggle('open', hasValue);
+    });
+  }
+  document.querySelectorAll('.chip--toggle').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      if (e.target.closest('.chip__body')) return;
+      toggleChip(chip);
+    });
+    chip.querySelectorAll('input,button').forEach(el => el.addEventListener('click', e => e.stopPropagation()));
+  });
+
+  // init из URL
+  if (qs.get('date_from')) fDateFrom.value = qs.get('date_from');
+  if (qs.get('date_to'))   fDateTo.value   = qs.get('date_to');
+  if (qs.get('amt_min'))   fAmtMin.value   = qs.get('amt_min');
+  if (qs.get('amt_max'))   fAmtMax.value   = qs.get('amt_max');
+  if (qs.get('order_id'))  fOrder.value    = qs.get('order_id');
+  if (qs.get('comment'))   fComment.value  = qs.get('comment');
+  if (qs.get('tag') && fTagName) fTagName.value = qs.get('tag');
+
+  hydrateChipsByValues();
+
+  // comment — живая (700 мс)
+  fComment.addEventListener('input', debounce(() => {
+    setParam('comment', fComment.value.trim());
+    apply();
+  }, 700));
+
+  // остальные — по Enter
+  const onEnter = (fn) => (e)=>{ if (e.key === 'Enter') { e.preventDefault(); fn(); } };
+
+  const applyDates   = () => { setParam('date_from', fDateFrom.value); setParam('date_to', fDateTo.value); apply(); };
+  const applyAmounts = () => { setParam('amt_min', fAmtMin.value); setParam('amt_max', fAmtMax.value); apply(); };
+  const applyOrder   = () => { setParam('order_id', fOrder.value.trim()); apply(); };
+  const applyTag     = () => { if (!fTagName) return; setParam('tag', fTagName.value.trim()); apply(); }; // строгий матч на бэке
+
+  fDateFrom.addEventListener('keydown', onEnter(applyDates));
+  fDateTo  .addEventListener('keydown', onEnter(applyDates));
+  fAmtMin  .addEventListener('keydown', onEnter(applyAmounts));
+  fAmtMax  .addEventListener('keydown', onEnter(applyAmounts));
+  fOrder   .addEventListener('keydown', onEnter(applyOrder));
+  if (fTagName) fTagName.addEventListener('keydown', onEnter(applyTag));
+
+  // Reset
+  btnReset.addEventListener('click', () => {
+    ['date_from','date_to','amt_min','amt_max','tag','order_id','comment','page'].forEach(k => qs.delete(k));
+    apply();
+  });
+
+  // Пагинация prev/next (если используешь те же кнопки)
+  (function () {
+    const wrap = document.querySelector('.pagination');
+    if (!wrap) return;
+    const go = (url) => url && (window.location.href = url);
+    const prev = wrap.querySelector('.prev');
+    const next = wrap.querySelector('.next');
+    if (prev) prev.addEventListener('click', () => { if (!prev.hasAttribute('disabled')) go(wrap.dataset.prev); });
+    if (next) next.addEventListener('click', () => { if (!next.hasAttribute('disabled')) go(wrap.dataset.next); });
+  })();
+})();
+</script>
 
 
 

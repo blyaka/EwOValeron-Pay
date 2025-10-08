@@ -12,7 +12,7 @@ spec:
       containers:
       - name: api
         image: docker.io/b1yaka/ewovaleron-pay-api:latest
-        command: ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]
+        command: ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000","--no-access-log"]
         ports: [{ containerPort: 8000 }]
         env:
         - { name: DATABASE_URL, value: "postgresql://postgres:postgres@pg.evpay.svc.cluster.local:5432/ev_pay" }
