@@ -51,7 +51,11 @@ img {
 }
 
 
-@media (max-width: 1240px) {
+@media (max-width: 767px) {
+    body {
+        padding-top: 64px;
+    }
+
     .container {
         padding: 0 20px;
     }
