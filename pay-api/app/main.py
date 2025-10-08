@@ -39,6 +39,9 @@ PAY_LINK_TTL_HOURS = int(os.getenv("PAY_LINK_TTL_HOURS", "24"))
 IDEMP_TTL_SEC = int(os.getenv("IDEMP_TTL_SEC", "86400"))  # 24h
 INTERNAL_TOKEN = os.getenv("PAY_INTERNAL_TOKEN")
 
+LOG_BODY = os.getenv("LOG_BODY", "1") == "1"
+LOG_BODY_MAX = int(os.getenv("LOG_BODY_MAX", "16384"))
+
 app = FastAPI()
 logger = logging.getLogger("uvicorn.error")
 
@@ -88,19 +91,86 @@ async def ping():
 
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
-    logger.info(f"{request.method} {request.url} headers={dict(request.headers)}")
-    response = await call_next(request)
-    logger.info(f"Response {response.status_code}")
-    return response
+async def log_selected_bodies(request: Request, call_next):
+    # Логируем только нужные эндпоинты и только POST
+    want_paths = {"/webhook", "/webhook/", "/create_order"}
+    if not LOG_BODY or request.method != "POST" or request.url.path not in want_paths:
+        return await call_next(request)
+
+    try:
+        raw = await request.body()   # читаем тело
+    except Exception:
+        raw = b""
+
+    # Вернём тело обратно в пайплайн, чтобы хэндлеры могли его прочитать
+    body_for_downstream = raw
+
+    async def receive():
+        return {"type": "http.request", "body": body_for_downstream, "more_body": False}
+
+    req = Request(request.scope, receive)
+
+    # Подготовка к логированию
+    ctype = (request.headers.get("content-type") or "").lower()
+    body_log = None
+
+    # простая маскировка чувствительных ключей
+    def _mask_dict(d: Dict[str, Any]) -> Dict[str, Any]:
+        SENSITIVE = {"sign", "signature", "api_key", "secret", "token", "password"}
+        out = {}
+        for k, v in d.items():
+            if isinstance(v, dict):
+                out[k] = _mask_dict(v)
+            elif str(k).lower() in SENSITIVE and isinstance(v, (str, bytes)):
+                s = v.decode() if isinstance(v, bytes) else str(v)
+                out[k] = s[:2] + "***" + s[-2:] if len(s) > 4 else "***"
+            else:
+                out[k] = v
+        return out
+
+    try:
+        if len(raw) <= LOG_BODY_MAX and "multipart" not in ctype:
+            # JSON
+            if "application/json" in ctype:
+                try:
+                    obj = json.loads(raw.decode("utf-8", "replace"))
+                    if isinstance(obj, dict):
+                        body_log = _mask_dict(obj)
+                    else:
+                        body_log = obj
+                except Exception:
+                    body_log = raw.decode("utf-8", "replace")
+
+            # form-urlencoded
+            elif "application/x-www-form-urlencoded" in ctype:
+                try:
+                    pairs = dict(parse_qsl(raw.decode("utf-8", "replace"), keep_blank_values=True))
+                    body_log = _mask_dict(pairs)
+                except Exception:
+                    body_log = raw.decode("utf-8", "replace")
+
+            # просто текст
+            else:
+                body_log = raw.decode("utf-8", "replace")
+        else:
+            body_log = f"<skipped: size={len(raw)} ct={ctype}>"
+    except Exception as e:
+        body_log = f"<parse_error: {e.__class__.__name__}>"
+
+    logger.info(
+        "REQ %s %s body=%s",
+        request.method, request.url.path,
+        body_log,
+    )
+
+    resp = await call_next(req)
+    logger.info("RESP %s %s status=%s", request.method, request.url.path, getattr(resp, "status_code", 0))
+    return resp
+
 
 
 
 # ============ Идемпотентность ============
-
-
-
-
 _idem_lock = asyncio.Lock()
 _idem_store: dict[str, dict] = {}
 
