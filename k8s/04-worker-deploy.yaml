@@ -27,3 +27,4 @@ spec:
         - { name: PAY_INTERNAL_TOKEN, value: "3cf592a2dfe6ef7297f567e134e791bf9a87e8d13adb63ba15103129772d7e81" }
         - { name: ALLOWED_HOSTS, value: "evpayservice.com,pay.evpayservice.com" }
         - { name: CSRF_TRUSTED_ORIGINS, value: "https://evpayservice.com,https://pay.evpayservice.com" }
+        - { name: PAY_INTERNAL_TOKEN, value: "8219666555:AAGzepJoLRfiwuf36iTYuTSp-7slaQhCLQI" }

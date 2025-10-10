@@ -45,10 +45,10 @@
   <div class="home-menu">
       <h3>Что выберете посмотреть?</h3>
         <div class="lk-menu-list">
-            <!-- <a href="">Краткая статистика</a> -->
+            <a href="{% url 'brief-stats' %}">Краткая статистика</a>
             <a href="{% url 'payment-status' %}">Статус платежей</a>
-            <!-- <a href="">Выводы</a>
-            <a href="">Генерация отчета</a>
+            <a href="{% url 'withdraw' %}">Выводы</a>
+            <!-- <a href="">Генерация отчета</a>
             <a href="">Уведомления</a> -->
             <a href="{% url 'payment-links' %}">Генерация платежных ссылок</a>
             <!-- <a href="">История чарж-беков</a> -->

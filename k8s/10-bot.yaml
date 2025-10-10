@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tg-bot-secrets
+  namespace: evpay
+type: Opaque
+stringData:
+  TELEGRAM_BOT_TOKEN: "PASTE_TELEGRAM_BOT_TOKEN"
+  BOT_INTERNAL_TOKEN: "PASTE_BOT_INTERNAL_TOKEN"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tg-bot-config
+  namespace: evpay
+data:
+  MAIN_APP_URL: "http://main-app.evpay.svc.cluster.local:8000"
+  DJANGO_SETTINGS_MODULE: "config.settings"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tg-bot
+  namespace: evpay
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: tg-bot }
+  template:
+    metadata:
+      labels: { app: tg-bot }
+    spec:
+      containers:
+        - name: tg-bot
+          image: docker.io/b1yaka/ewovaleron-pay-bot:latest
+          imagePullPolicy: Always
+          envFrom:
+            - secretRef: { name: tg-bot-secrets }
+            - configMapRef: { name: tg-bot-config }
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }
+            limits:   { cpu: "250m", memory: "256Mi" }
+          readinessProbe:
+            exec:
+              command: ["bash","-lc","python - <<'PY'\nprint('ok')\nPY"]
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          livenessProbe:
+            exec:
+              command: ["bash","-lc","python - <<'PY'\nprint('ok')\nPY"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
