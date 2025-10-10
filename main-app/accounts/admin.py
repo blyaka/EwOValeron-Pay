@@ -2,10 +2,15 @@ from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 from django.urls import path, reverse
 from django.utils import timezone
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 from datetime import timedelta
 import secrets, string
 from .models import PromoCode, SellerProfile
+from .models import TelegramAccount, TelegramLinkToken 
+
+
+from django.conf import settings
+from django.utils.html import format_html
 
 def _new_code(n=10):
     alphabet = string.ascii_uppercase + string.digits
@@ -82,9 +87,93 @@ class PromoCodeAdmin(admin.ModelAdmin):
 
 
 
+class HasTelegramFilter(admin.SimpleListFilter):
+    title = "Привязка Telegram"
+    parameter_name = "has_tg"
+
+    def lookups(self, request, model_admin):
+        return [("1", "Есть привязка"), ("0", "Нет привязки")]
+
+    def queryset(self, request, qs):
+        if self.value() == "1":
+            return qs.filter(user__tg__isnull=False)
+        if self.value() == "0":
+            return qs.filter(user__tg__isnull=True)
+        return qs
+
 @admin.register(SellerProfile)
 class SellerProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "order_prefix", "commission_pct")
-    search_fields = ("user__username", "order_prefix")
+    list_display = ("user", "order_prefix", "commission_pct",
+                    "tg_status", "tg_username", "tg_id", "tg_linked_at", "tg_actions")
+    search_fields = ("user__username", "order_prefix", "user__tg__username")
     list_editable = ("commission_pct",)
+    list_filter = (HasTelegramFilter,)
     ordering = ("user__username",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related("user").prefetch_related("user__tg")
+
+    # ----- колонки TG -----
+    def tg_status(self, obj):
+        return "✅" if hasattr(obj.user, "tg") else "—"
+    tg_status.short_description = "TG"
+
+    def tg_username(self, obj):
+        return getattr(getattr(obj.user, "tg", None), "username", "") or ""
+    tg_username.short_description = "TG username"
+
+    def tg_id(self, obj):
+        return getattr(getattr(obj.user, "tg", None), "telegram_id", "") or ""
+    tg_id.short_description = "TG ID"
+
+    def tg_linked_at(self, obj):
+        return getattr(getattr(obj.user, "tg", None), "linked_at", None)
+    tg_linked_at.short_description = "Привязан"
+
+    # Кнопки действий в строке
+    def tg_actions(self, obj):
+        link_url = reverse("admin:accounts_sellerprofile_tg_link", args=[obj.pk])
+        unlink_url = reverse("admin:accounts_sellerprofile_tg_unlink", args=[obj.pk])
+        btn_link = f'<a class="button" href="{link_url}">Deep-link</a>'
+        btn_unlink = f'<a class="button" href="{unlink_url}">Отвязать</a>'
+        return format_html(f"{btn_link}&nbsp;{btn_unlink}")
+    tg_actions.short_description = "Действия"
+    tg_actions.allow_tags = True
+
+    # ----- кастомные urls -----
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path("<int:pk>/tg-link/", self.admin_site.admin_view(self.tg_link_view),
+                 name="accounts_sellerprofile_tg_link"),
+            path("<int:pk>/tg-unlink/", self.admin_site.admin_view(self.tg_unlink_view),
+                 name="accounts_sellerprofile_tg_unlink"),
+        ]
+        return custom + urls
+
+    def tg_link_view(self, request, pk):
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+        obj = get_object_or_404(SellerProfile, pk=pk)
+        # если уже привязан — просто подсветим ник
+        if hasattr(obj.user, "tg"):
+            messages.info(request, f"Уже привязан: @{obj.user.tg.username or obj.user.tg.telegram_id}")
+            return redirect(reverse("admin:accounts_sellerprofile_changelist"))
+
+        tok = TelegramLinkToken.issue(obj.user, ttl_minutes=15)
+        bot_name = getattr(settings, "TELEGRAM_BOT_USERNAME", "")
+        deep = f"https://t.me/{bot_name}?start={tok.token}"
+        messages.success(request, f"Deep-link на 15 мин: {deep}")
+        return redirect(reverse("admin:accounts_sellerprofile_changelist"))
+
+    def tg_unlink_view(self, request, pk):
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+        obj = get_object_or_404(SellerProfile, pk=pk)
+        deleted, _ = TelegramAccount.objects.filter(user=obj.user).delete()
+        if deleted:
+            messages.success(request, "Привязка Telegram удалена.")
+        else:
+            messages.info(request, "Привязки не было.")
+        return redirect(reverse("admin:accounts_sellerprofile_changelist"))

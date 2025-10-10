@@ -1,4 +1,4 @@
-from django.http import JsonResponse, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.contrib.auth.decorators import login_required
 from .forms import CreateLinkForm
@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 import random
 import json
 from django.utils.text import slugify
+
+from accounts.models import TelegramAccount  # связь TG→User
 
 @login_required
 @require_POST
@@ -35,6 +37,72 @@ def generate_link(request):
     except Exception as e:
         logger.exception("Ошибка при генерации ссылки: %s", e)
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+
+
+# payments/views.py
+import json
+from django.views.decorators.csrf import csrf_exempt
+
+from django.conf import settings
+from django.utils.decorators import method_decorator
+
+
+@csrf_exempt
+@require_POST
+def bot_create_link(request):
+    # Проверка секрета
+    token = request.headers.get("X-Bot-Token", "")
+    if not settings.BOT_INTERNAL_TOKEN or token != settings.BOT_INTERNAL_TOKEN:
+        return HttpResponseForbidden("forbidden")
+
+    # Определяем юзера по Telegram ID
+    try:
+        tg_id = int(request.headers.get("X-Telegram-Id", "0"))
+    except ValueError:
+        return HttpResponseBadRequest("bad telegram id")
+
+    try:
+        tg = TelegramAccount.objects.select_related("user").get(telegram_id=tg_id)
+    except TelegramAccount.DoesNotExist:
+        return HttpResponseForbidden("not linked")
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return HttpResponseBadRequest("bad json")
+
+    # Проставляем дефолты «быстрой» генерации
+    data = {
+        "amount": payload.get("amount"),
+        "method": 44,  # СБП по дефолту
+        "comment": payload.get("comment") or "",
+        "ttl_minutes": int(payload.get("ttl_minutes") or 60*24),  # 24ч
+        "tag_id": None,
+        "email": payload.get("email"),  # обязательно
+    }
+
+    form = CreateLinkForm(data)
+    if not form.is_valid():
+        return JsonResponse({"ok": False, "errors": form.errors}, status=400)
+
+    try:
+        p = form.save(tg.user)
+    except Exception as e:
+        logger.exception("bot_create_link error: %s", e)
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+    return JsonResponse({
+        "ok": True,
+        "order_id": p.order_id,
+        "public_url": p.public_url,
+        "fk_url": p.fk_url,
+        "amount": str(p.amount),
+        "method": p.method,
+        "comment": p.comment,
+        "expires_at": p.expires_at.isoformat(),
+    })
 
 
 
