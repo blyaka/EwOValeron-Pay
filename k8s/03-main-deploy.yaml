@@ -42,7 +42,7 @@ spec:
           - name: PAY_API_URL
             value: http://pay-api.evpay.svc.cluster.local:8000
           - name: ALLOWED_HOSTS
-            value: evpayservice.com,pay.evpayservice.com
+            value: evpayservice.com,pay.evpayservice.com,main-app.evpay.svc.cluster.local,main-app
           - name: CSRF_TRUSTED_ORIGINS
             value: https://evpayservice.com,https://pay.evpayservice.com
           - name: MEDIA_ROOT
@@ -55,6 +55,8 @@ spec:
             value: "24"
           - name: TELEGRAM_BOT_TOKEN
             value: "8219666555:AAGzepJoLRfiwuf36iTYuTSp-7slaQhCLQI"
+          - name: BOT_INTERNAL_TOKEN
+            value: "9e3b68b3fd1c6d3b5e9157e9a2db9c5b6a2a7cdd3ffb8f99adfdd0f0f1d35eab"
         readinessProbe:
           httpGet:
             path: /health/
