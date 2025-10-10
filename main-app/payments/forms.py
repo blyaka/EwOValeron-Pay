@@ -7,6 +7,8 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from .models import Payment, METHOD_CHOICES, Tag
 from .services import next_order_id_for
+import time, logging
+log = logging.getLogger(__name__)
 
 MIN_BY_METHOD = {36: Decimal("50.00"), 35: Decimal("50.00"), 44: Decimal("10.00")}
 # BOT_EMAIL = "evopay_alert_bot@telegram.org"
@@ -49,8 +51,9 @@ class CreateLinkForm(forms.Form):
         order_id, seq, prefix, day = next_order_id_for(user)
         idem = uuid.uuid4().hex
 
+        amt = Decimal(self.cleaned_data["amount"]).quantize(Decimal("0.01"))
         payload = {
-            "amount": float(self.cleaned_data["amount"]),
+            "amount": float(amt),
             "email": self.cleaned_data["email"],
             "ip": "0.0.0.0",
             "payment_method": int(self.cleaned_data["method"]),
@@ -59,15 +62,29 @@ class CreateLinkForm(forms.Form):
             "ttl_minutes": int(self.cleaned_data["ttl_minutes"]),
         }
 
-        r = requests.post(
-            f"{settings.PAY_API_URL}/internal/create_link",
-            json=payload,
-            headers={"X-Internal-Token": settings.PAY_INTERNAL_TOKEN, "X-Idempotency-Key": idem},
-            timeout=10,
-        )
-        r.raise_for_status()
-        data = r.json()
+        t0 = time.time()
+        try:
+            r = requests.post(
+                f"{settings.PAY_API_URL}/internal/create_link",
+                json=payload,
+                headers={
+                    "X-Internal-Token": settings.PAY_INTERNAL_TOKEN,
+                    "X-Idempotency-Key": idem,
+                },
+                timeout=(3, 25),
+            )
+            dt = time.time() - t0
+            log.info("pay-api create_link %s in %.3fs -> %s %s",
+                    order_id, dt, r.status_code, (r.text or "")[:200])
+            r.raise_for_status()
+        except requests.Timeout as e:
+            log.exception("pay-api TIMEOUT %s after %.3fs", order_id, time.time() - t0)
+            raise RuntimeError("Pay API timeout")
+        except requests.RequestException as e:
+            log.exception("pay-api ERROR %s after %.3fs", order_id, time.time() - t0)
+            raise RuntimeError(f"Pay API error: {e}")
 
+        data = r.json()
         exp = data.get("expires_at")
         if exp:
             try:
