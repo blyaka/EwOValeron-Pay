@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 MAIN_APP_URL = os.getenv("MAIN_APP_URL", "http://web:8000")
-BOT_INTERNAL_TOKEN = os.getenv("BOT_INTERNAL_TOKEN", "")  # <— секрет для Django эндпоинта
+BOT_INTERNAL_TOKEN = os.getenv("BOT_INTERNAL_TOKEN", "")
 
 MIN_BY_METHOD = {36: Decimal("50.00"), 35: Decimal("50.00"), 44: Decimal("10.00")}
 
