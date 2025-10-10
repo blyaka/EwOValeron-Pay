@@ -3,6 +3,7 @@ import os, django, logging, asyncio, re
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
+from html import escape
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -120,13 +121,14 @@ async def create_link(m: Message, state: FSMContext):
                     await state.clear()
                     return
                 if r.status != 200:
-                    text = await r.text()
-                    await m.answer(f"Ошибка {r.status}: {text[:300]}")
+                    text = (await r.text())[:300]
+                    safe = escape(text)
+                    await m.answer(f"Ошибка {r.status}: {safe}", parse_mode=None, disable_web_page_preview=True)
                     await state.clear()
                     return
                 j = await r.json()
     except Exception as e:
-        await m.answer(f"Ошибка соединения: {e}")
+        await m.answer(f"Ошибка соединения: {escape(str(e))}", parse_mode=None, disable_web_page_preview=True)
         await state.clear()
         return
 
@@ -138,7 +140,10 @@ async def create_link(m: Message, state: FSMContext):
         kb = InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="Открыть ссылку", url=pub)]]
         )
-        await m.answer(f"Готово!\nЗаказ <b>{oid}</b>\nСсылка для клиента:\n{pub}", reply_markup=kb)
+        await m.answer(
+            f"Готово!\nЗаказ <b>{escape(oid)}</b>\nСсылка для клиента:\n{escape(pub)}",
+            reply_markup=kb
+        )
 
     await state.clear()
 
