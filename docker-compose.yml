@@ -37,6 +37,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db-main:5432/ev_main
       REDIS_URL: redis://redis:6379/0
       RABBIT_URL: amqp://user:pass@rabbit:5672/
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
     depends_on:
       db-main:
         condition: service_healthy
@@ -116,6 +117,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
+
+  tg-bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    command: bash -lc "python -m bot.main"
+    environment:
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
+      DJANGO_SETTINGS_MODULE: "config.settings"
+      DATABASE_URL: postgresql://postgres:postgres@db-main:5432/ev_main
+    volumes:
+      - ./bot:/app/bot
+      - ./main-app:/app/main-app
+    depends_on:
+      db-main:
+        condition: service_healthy
 
 volumes:
   pg_main: {}

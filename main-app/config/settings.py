@@ -215,3 +215,4 @@ PAY_INTERNAL_TOKEN = os.getenv(
     "3cf592a2dfe6ef7297f567e134e791bf9a87e8d13adb63ba15103129772d7e81"
 )
 
+TELEGRAM_BOT_USERNAME = 'evopay_alert_bot'

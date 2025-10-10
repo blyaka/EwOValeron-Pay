@@ -1,6 +1,6 @@
 from django.urls import path
-from django.conf.urls.static import static
-from django.conf import settings
+from .views import tg_connect_link
 
 urlpatterns = [
+    path('tg/connect-link/', tg_connect_link, name='tg_connect_link'),
 ]
