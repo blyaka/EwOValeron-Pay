@@ -214,3 +214,8 @@ def payment_status(request):
 
 def brief_stats(request):
     return render(request, 'seller/brief_stats.html')
+
+
+
+def withdraw (request):
+    return render(request, 'seller/withdraw.html')
