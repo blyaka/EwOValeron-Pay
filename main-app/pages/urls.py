@@ -2,7 +2,7 @@ from django.urls import path
 from .views import HomePage, CatalogPage
 
 
-from .views import home_lk, payment_links, payment_status, brief_stats
+from .views import home_lk, payment_links, payment_status, brief_stats, withdraw
 
 urlpatterns = [
     path('', HomePage, name='home'),
@@ -12,4 +12,5 @@ urlpatterns = [
     path('payment-links/', payment_links, name='payment-links'),
     path('payment-status/', payment_status, name='payment-status'),
     path('brief-stats/', brief_stats, name='brief-stats'),
+    path('withdraw/', withdraw, name='withdraw'),
 ]

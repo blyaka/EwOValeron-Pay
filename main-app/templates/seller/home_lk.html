@@ -1,25 +1,49 @@
 {% extends '_base.html' %}
 {% load static %}
 
-
 {% block styles %}
 <link rel="stylesheet" href="{% static 'css/pages/home_lk.css' %}">
+<style>
+.tg-connect {
+    margin-top: 10px;
+}
+.tg-btn {
+    display: inline-block;
+    background: var(--accent, #6a5acd);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s ease;
+}
+.tg-btn:hover {
+    background: #7c6df0;
+}
+.tg-status {
+    display: block;
+    margin-top: 8px;
+    color: #666;
+    font-size: 14px;
+}
+</style>
 {% endblock styles %}
 
 {% block content %}
-
 <main>
+  <div class="hello">
+      <h2>Здравствуйте,</h2>
+      <h1>{{ user.username }}</h1>
 
+      <div class="tg-connect">
+          <button id="tgBtn" class="tg-btn">Подключить Telegram</button>
+          <span id="tgStatus" class="tg-status"></span>
+      </div>
+  </div>
 
-    <div class="hello">
-        <h2>Здравствуйте,</h2>
-        <h1>{{ user.username }}</h1>
-    </div>
-
-
-    <div class="home-menu">
-        <h3>Что выберете посмотреть?</h3>
-
+  <div class="home-menu">
+      <h3>Что выберете посмотреть?</h3>
         <div class="lk-menu-list">
             <!-- <a href="">Краткая статистика</a> -->
             <a href="{% url 'payment-status' %}">Статус платежей</a>
@@ -29,8 +53,45 @@
             <a href="{% url 'payment-links' %}">Генерация платежных ссылок</a>
             <!-- <a href="">История чарж-беков</a> -->
         </div>
-    </div>
+  </div>
 </main>
 
 
+<script>
+const btn = document.getElementById('tgBtn');
+const statusEl = document.getElementById('tgStatus');
+
+btn.addEventListener('click', async () => {
+  btn.disabled = true;
+  statusEl.textContent = 'Создаю ссылку...';
+
+  try {
+    const r = await fetch("{% url 'tg_connect_link' %}", {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken')
+      }
+    });
+    const data = await r.json();
+
+    if (data.status === 'already_linked') {
+      statusEl.textContent = `Уже привязан: @${data.username || data.telegram_id}`;
+    } else if (data.status === 'ok') {
+      window.open(data.link, '_blank');
+      statusEl.textContent = 'Перейдите в Telegram и нажмите Start';
+    } else {
+      statusEl.textContent = 'Ошибка при создании ссылки';
+    }
+  } catch (e) {
+    statusEl.textContent = 'Ошибка соединения';
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function getCookie(name) {
+  const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return match ? match.pop() : '';
+}
+</script>
 {% endblock content %}
