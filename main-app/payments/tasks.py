@@ -5,7 +5,7 @@ from django.db import transaction
 
 from payments.models import Payment
 from payments.services import get_effective_commission_from_profile
-from accounts.models import TelegramAccount  # привязка TG тут
+from accounts.models import TelegramAccount
 
 logger = logging.getLogger(__name__)
 
@@ -71,52 +71,48 @@ def handle_payment_event(self, body):
     order_id = data.get("order_id")
     status = (data.get("status") or "").lower()
     intid = data.get("intid") or ""
-
     if not order_id:
-        logger.warning("Event without order_id: %s", data)
-        return
+        logger.warning("Event without order_id: %s", data); return
 
     try:
         p = Payment.objects.get(order_id=order_id)
     except Payment.DoesNotExist:
-        logger.warning("Payment not found: %s", order_id)
-        return
+        logger.warning("Payment not found: %s", order_id); return
 
-    was_paid = bool(p.paid_at)
+    prev_status = p.status
 
     if status in ("success", "paid", "completed"):
         p.status = "paid"
         if not p.paid_at:
             p.paid_at = timezone.now()
-
         percent = get_effective_commission_from_profile(p.user, p.paid_at)
         p.apply_commission_snapshot(percent)
-
         if intid:
             p.fk_intid = intid
 
-        update_fields = ["status", "paid_at", "commission_percent", "fee", "payout"]
-        if intid:
-            update_fields.append("fk_intid")
+        update_fields = ["status","paid_at","commission_percent","fee","payout"]
+        if intid: update_fields.append("fk_intid")
 
         with transaction.atomic():
             p.save(update_fields=update_fields)
-            if not was_paid:
+            if prev_status != "paid":
+                logger.info("Enqueue notify_payment_paid for %s", p.order_id)
                 notify_payment_paid.delay(p.id)
 
     elif status in ("fail", "failed", "error", "cancel"):
         p.status = "failed"
         if intid:
             p.fk_intid = intid
-            p.save(update_fields=["status", "fk_intid"])
+            p.save(update_fields=["status","fk_intid"])
         else:
             p.save(update_fields=["status"])
     else:
         p.status = status or p.status
         if intid:
             p.fk_intid = intid
-            p.save(update_fields=["status", "fk_intid"])
+            p.save(update_fields=["status","fk_intid"])
         else:
             p.save(update_fields=["status"])
 
     logger.info("Payment %s => %s (intid=%s)", order_id, p.status, intid)
+

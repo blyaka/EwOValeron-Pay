@@ -5,8 +5,8 @@ metadata:
   namespace: evpay
 type: Opaque
 stringData:
-  TELEGRAM_BOT_TOKEN: "PASTE_TELEGRAM_BOT_TOKEN"
-  BOT_INTERNAL_TOKEN: "PASTE_BOT_INTERNAL_TOKEN"
+  TELEGRAM_BOT_TOKEN: "8219666555:AAGzepJoLRfiwuf36iTYuTSp-7slaQhCLQI"
+  BOT_INTERNAL_TOKEN: "3cf592a2dfe6ef7297f567e134e791bf9a87e8d13adb63ba15103129772d7e81"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -35,18 +35,26 @@ spec:
           image: docker.io/b1yaka/ewovaleron-pay-bot:latest
           imagePullPolicy: Always
           envFrom:
-            - secretRef: { name: tg-bot-secrets }
-            - configMapRef: { name: tg-bot-config }
+            - secretRef:     { name: tg-bot-secrets }
+            - configMapRef:  { name: tg-bot-config }
+          env:
+            - name: DATABASE_URL
+              value: postgresql://postgres:postgres@pg.evpay.svc.cluster.local:5432/ev_main
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: evpay-secrets
+                  key: DJANGO_SECRET_KEY
           resources:
-            requests: { cpu: "50m", memory: "128Mi" }
+            requests: { cpu: "50m",  memory: "128Mi" }
             limits:   { cpu: "250m", memory: "256Mi" }
           readinessProbe:
             exec:
-              command: ["bash","-lc","python - <<'PY'\nprint('ok')\nPY"]
+              command: ["python","-c","print('ok')"]
             initialDelaySeconds: 5
             periodSeconds: 15
           livenessProbe:
             exec:
-              command: ["bash","-lc","python - <<'PY'\nprint('ok')\nPY"]
+              command: ["python","-c","print('ok')"]
             initialDelaySeconds: 30
             periodSeconds: 30
