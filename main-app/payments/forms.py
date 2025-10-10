@@ -18,7 +18,7 @@ class CreateLinkForm(forms.Form):
     comment = forms.CharField(max_length=140, required=False)
     ttl_minutes = forms.IntegerField(min_value=1, max_value=60*24*30, initial=60)
     tag_id = forms.IntegerField(required=False)
-    email = forms.EmailField(required=True)  # <<<< новое обязательное поле
+    email = forms.EmailField(required=True)
 
     def clean(self):
         c = super().clean()
@@ -51,7 +51,7 @@ class CreateLinkForm(forms.Form):
 
         payload = {
             "amount": float(self.cleaned_data["amount"]),
-            "email": self.cleaned_data["email"],          # <<<< прокидываем email покупателя
+            "email": self.cleaned_data["email"],
             "ip": "0.0.0.0",
             "payment_method": int(self.cleaned_data["method"]),
             "description": self.cleaned_data.get("comment") or "",

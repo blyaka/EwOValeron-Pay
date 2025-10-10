@@ -4,8 +4,12 @@ from .models import SellerDayCounter, SellerCommission
 from decimal import Decimal
 from django.conf import settings
 
+
+def _today_local():
+    return timezone.localdate()
+
 def next_order_id_for(user):
-    today = timezone.now().date()
+    today = _today_local()
     with transaction.atomic():
         row, _ = SellerDayCounter.objects.select_for_update().get_or_create(
             user=user, day=today, defaults={"last_seq":0}
@@ -19,7 +23,7 @@ def next_order_id_for(user):
 
 
 def preview_next_order_id_for(user):
-    today = timezone.now().date()
+    today = _today_local()
     row, _ = SellerDayCounter.objects.get_or_create(
         user=user, day=today, defaults={"last_seq": 0}
     )
