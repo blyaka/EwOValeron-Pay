@@ -6,7 +6,7 @@ on:
     paths:
       - 'bot/**'
       - 'main-app/**'
-      - 'k8s/04-bot.yaml'
+      - 'k8s/10-bot.yaml'
       - '.github/workflows/bot.yml'
   workflow_dispatch:
 

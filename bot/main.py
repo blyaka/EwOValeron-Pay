@@ -7,7 +7,6 @@ from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
@@ -16,7 +15,15 @@ from asgiref.sync import sync_to_async
 from django.db import transaction
 from accounts.models import TelegramLinkToken, TelegramAccount
 
-import aiohttp  # <— нужен в requirements
+import aiohttp
+
+
+from aiogram.types import (
+    Message, InlineKeyboardMarkup, InlineKeyboardButton,
+    CallbackQuery, BotCommand
+)
+from aiogram import F
+# from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 logging.basicConfig(level=logging.INFO)
 
@@ -94,12 +101,12 @@ async def create_link(m: Message, state: FSMContext):
     amount = data["amount"]
 
     payload = {
-        "amount": float(amount),
-        "email": email,  # TTL=24ч и method=СБП задаются на стороне Django
+        "amount": str(amount),
+        "email": email,
     }
 
     headers = {
-        "X-Bot-Token": BOT_INTERNAL_TOKEN,       # <— правильный секрет
+        "X-Bot-Token": BOT_INTERNAL_TOKEN,
         "X-Telegram-Id": str(m.from_user.id),
         "Content-Type": "application/json",
     }
@@ -108,6 +115,10 @@ async def create_link(m: Message, state: FSMContext):
     try:
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as sess:
             async with sess.post(url, json=payload, headers=headers) as r:
+                if r.status == 403:
+                    await m.answer("Твой Telegram не привязан к личному кабинету. Зайди в ЛК и нажми «Подключить Telegram».")
+                    await state.clear()
+                    return
                 if r.status != 200:
                     text = await r.text()
                     await m.answer(f"Ошибка {r.status}: {text[:300]}")
@@ -124,7 +135,10 @@ async def create_link(m: Message, state: FSMContext):
     else:
         pub = j["public_url"]
         oid = j["order_id"]
-        await m.answer(f"Готово!\nЗаказ <b>{oid}</b>\nСсылка для клиента:\n{pub}")
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="Открыть ссылку", url=pub)]]
+        )
+        await m.answer(f"Готово!\nЗаказ <b>{oid}</b>\nСсылка для клиента:\n{pub}", reply_markup=kb)
 
     await state.clear()
 
@@ -132,20 +146,69 @@ async def create_link(m: Message, state: FSMContext):
 async def start(m: Message):
     payload = m.text.split(maxsplit=1)
     tok = payload[1].strip() if len(payload) > 1 else ''
-    if not tok:
-        await m.answer("Привет! Зайди в личный кабинет и нажми «Подключить Telegram».")
-        return
 
-    status, _ = await _link_user_by_token(
-        tok, m.from_user.id, m.from_user.username or '', m.from_user.first_name or ''
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💳 Создать ссылку", callback_data="create_link_start")],
+        [InlineKeyboardButton(text="ℹ️ Помощь", callback_data="help")],
+    ])
+
+    if tok:
+        status, _ = await _link_user_by_token(
+            tok, m.from_user.id, m.from_user.username or '', m.from_user.first_name or ''
+        )
+        if status == "ok":
+            await m.answer(
+                "✅ Готово! Телеграм привязан к твоему аккаунту.\n\n"
+                "Теперь ты можешь прямо здесь создавать ссылки на оплату и получать уведомления о платежах.",
+                reply_markup=kb
+            )
+            return
+        elif status == "inactive":
+            await m.answer("⚠️ Токен истёк или уже использован. Сгенерируй новый в личном кабинете.")
+            return
+        else:
+            await m.answer("❌ Токен не найден.")
+            return
+
+    await m.answer(
+        "👋 Привет! Это бот <b>EVO PAY</b>.\n\n"
+        "Здесь ты можешь:\n"
+        "• 💰 Создавать платёжные ссылки для клиентов\n"
+        "• 📩 Получать уведомления об оплатах\n"
+        "Чтобы начать — нажми кнопку ниже.",
+        reply_markup=kb
     )
 
-    if status == "ok":
-        await m.answer("Готово! Телеграм привязан к твоему аккаунту.")
-    elif status == "inactive":
-        await m.answer("Токен истёк или уже использован. Сгенерируй новый в личном кабинете.")
-    else:
-        await m.answer("Токен не найден.")
+
+@dp.message(Command("cancel"))
+async def cancel_state(m: Message, state: FSMContext):
+    await state.clear()
+    await m.answer("Отменено. Нажми «💳 Создать ссылку», когда будешь готов.")
+
+@dp.callback_query(F.data == "create_link_start")
+async def cb_create_link_start(q: CallbackQuery, state: FSMContext):
+    await state.set_state(CreateLinkSG.amount)
+    await q.message.answer("Введи сумму заказа (₽). Минимум для СБП — 10.00")
+    await q.answer()
+
+@dp.callback_query(F.data == "help")
+async def cb_help(q: CallbackQuery):
+    await q.message.answer(
+        "ℹ️ Помощь:\n\n"
+        "• Чтобы создать ссылку, нажми «Создать ссылку» или команду /newlink\n"
+        "• Чтобы привязать Telegram — нажми кнопку в личном кабинете\n"
+        "• Уведомления об оплате приходят сюда автоматически."
+    )
+    await q.answer()
+
+async def on_startup(bot: Bot):
+    commands = [
+        BotCommand(command="start", description="Главное меню"),
+        BotCommand(command="newlink", description="Создать ссылку"),
+        BotCommand(command="help", description="Помощь"),
+        BotCommand(command="cancel", description="Отменить ввод"),
+    ]
+    await bot.set_my_commands(commands)
 
 if __name__ == "__main__":
-    asyncio.run(dp.start_polling(bot))
+    asyncio.run(dp.start_polling(bot, on_startup=on_startup))
