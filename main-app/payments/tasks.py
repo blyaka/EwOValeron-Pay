@@ -2,7 +2,7 @@ import os, json, logging, decimal, requests
 from celery import shared_task
 from django.utils import timezone
 from django.db import transaction
-
+from django.core.cache import cache
 from payments.models import Payment
 from payments.services import get_effective_commission_from_profile
 from accounts.models import TelegramAccount
@@ -70,7 +70,8 @@ def handle_payment_event(self, body):
     data = json.loads(body) if isinstance(body, str) else body
     order_id = data.get("order_id")
     status = (data.get("status") or "").lower()
-    intid = data.get("intid") or ""
+    intid = (data.get("intid") or "")
+
     if not order_id:
         logger.warning("Event without order_id: %s", data); return
 
@@ -85,6 +86,7 @@ def handle_payment_event(self, body):
         p.status = "paid"
         if not p.paid_at:
             p.paid_at = timezone.now()
+
         percent = get_effective_commission_from_profile(p.user, p.paid_at)
         p.apply_commission_snapshot(percent)
         if intid:
@@ -95,9 +97,13 @@ def handle_payment_event(self, body):
 
         with transaction.atomic():
             p.save(update_fields=update_fields)
-            if prev_status != "paid":
-                logger.info("Enqueue notify_payment_paid for %s", p.order_id)
+
+            dedup_key = f"notify:paid:{p.order_id}:{intid or 'noid'}"
+            if cache.add(dedup_key, "1", timeout=60):
+                logger.info("Enqueue notify_payment_paid for %s (prev=%s, intid=%s)", p.order_id, prev_status, intid or "-")
                 notify_payment_paid.delay(p.id)
+            else:
+                logger.info("Skip duplicate notify for %s (intid=%s)", p.order_id, intid or "-")
 
     elif status in ("fail", "failed", "error", "cancel"):
         p.status = "failed"
@@ -115,4 +121,3 @@ def handle_payment_event(self, body):
             p.save(update_fields=["status"])
 
     logger.info("Payment %s => %s (intid=%s)", order_id, p.status, intid)
-
