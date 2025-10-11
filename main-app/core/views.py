@@ -1,3 +1,9 @@
-from django.shortcuts import render
+from django.http import JsonResponse
+from .models import PaymentMethod
 
-# Create your views here.
+def payment_methods_api(request):
+    rows = (PaymentMethod.objects
+            .filter(is_active=True)
+            .order_by('sort','id')
+            .values('id','name','min_amount','is_default'))
+    return JsonResponse({"ok": True, "methods": list(rows)})

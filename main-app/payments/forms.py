@@ -1,22 +1,25 @@
-import uuid, requests
 from decimal import Decimal
 from datetime import datetime
+import uuid, requests, time, logging
 from django import forms
 from django.conf import settings
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from .models import Payment, METHOD_CHOICES, Tag
+from .models import Payment, Tag
 from .services import next_order_id_for
-import time, logging
+from core.models import PaymentMethod
+
 log = logging.getLogger(__name__)
 
-MIN_BY_METHOD = {36: Decimal("50.00"), 35: Decimal("50.00"), 44: Decimal("10.00")}
-# BOT_EMAIL = "evopay_alert_bot@telegram.org"
+def method_choices():
+    return [(m.id, f"{m.id} — {m.name}") for m in PaymentMethod.objects.filter(is_active=True).order_by("sort","id")]
 
+def min_by_method_map():
+    return {m.id: m.min_amount for m in PaymentMethod.objects.all()}
 
 class CreateLinkForm(forms.Form):
     amount = forms.DecimalField(min_value=Decimal("0.01"), max_digits=12, decimal_places=2)
-    method = forms.ChoiceField(choices=METHOD_CHOICES, initial=44)
+    method = forms.ChoiceField(choices=method_choices, initial=44)
     comment = forms.CharField(max_length=140, required=False)
     ttl_minutes = forms.IntegerField(min_value=1, max_value=60*24*30, initial=60)
     tag_id = forms.IntegerField(required=False)
@@ -26,8 +29,12 @@ class CreateLinkForm(forms.Form):
         c = super().clean()
         m = int(c.get("method") or 36)
         amt = c.get("amount") or Decimal("0")
-        if amt < MIN_BY_METHOD.get(m, Decimal("50.00")):
-            raise forms.ValidationError(f"Минимальная сумма для выбранного метода — {MIN_BY_METHOD[m]} ₽")
+
+        methods = min_by_method_map()
+        min_amt = methods.get(m, Decimal("50.00"))
+        if amt < min_amt:
+            raise forms.ValidationError(f"Минимальная сумма для выбранного метода — {min_amt} ₽")
+
         tid = c.get("tag_id")
         if tid is not None:
             if tid == "":
@@ -63,27 +70,15 @@ class CreateLinkForm(forms.Form):
         }
 
         t0 = time.time()
-        try:
-            r = requests.post(
-                f"{settings.PAY_API_URL}/internal/create_link",
-                json=payload,
-                headers={
-                    "X-Internal-Token": settings.PAY_INTERNAL_TOKEN,
-                    "X-Idempotency-Key": idem,
-                },
-                timeout=(3, 25),
-            )
-            dt = time.time() - t0
-            log.info("pay-api create_link %s in %.3fs -> %s %s",
-                    order_id, dt, r.status_code, (r.text or "")[:200])
-            r.raise_for_status()
-        except requests.Timeout as e:
-            log.exception("pay-api TIMEOUT %s after %.3fs", order_id, time.time() - t0)
-            raise RuntimeError("Pay API timeout")
-        except requests.RequestException as e:
-            log.exception("pay-api ERROR %s after %.3fs", order_id, time.time() - t0)
-            raise RuntimeError(f"Pay API error: {e}")
-
+        r = requests.post(
+            f"{settings.PAY_API_URL}/internal/create_link",
+            json=payload,
+            headers={"X-Internal-Token": settings.PAY_INTERNAL_TOKEN, "X-Idempotency-Key": idem},
+            timeout=(3, 25),
+        )
+        log.info("pay-api create_link %s in %.3fs -> %s %s",
+                 order_id, time.time() - t0, r.status_code, (r.text or "")[:200])
+        r.raise_for_status()
         data = r.json()
         exp = data.get("expires_at")
         if exp:
@@ -115,9 +110,7 @@ class CreateLinkForm(forms.Form):
             order_seq=seq,
             order_id=order_id,
         )
-
         if tag_obj:
             p.tag_obj = tag_obj
             p.save(update_fields=["tag_obj"])
-
         return p
