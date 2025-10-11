@@ -2,12 +2,7 @@ from django.db import models
 from django.conf import settings
 from decimal import Decimal, ROUND_HALF_UP
 from django.core.validators import MinValueValidator, MaxValueValidator
-
-METHOD_CHOICES = (
-    (36, "Карты (VISA/MasterCard/МИР)"),
-    (35, "QIWI"),
-    (44, "СБП"),
-)
+from core.models import PaymentMethod
 
 class SellerDayCounter(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -67,7 +62,7 @@ class Payment(models.Model):
         validators=[MinValueValidator(Decimal("0.01"))]
     )
     email = models.EmailField()
-    method = models.PositiveIntegerField(choices=METHOD_CHOICES, default=36)
+    method = models.PositiveIntegerField()
     comment = models.CharField(max_length=140, blank=True)
 
     tag_obj = models.ForeignKey(Tag, null=True, blank=True,
@@ -90,13 +85,17 @@ class Payment(models.Model):
         ordering = ["-created_at"]
 
     @property
-    def method_label(self):
-        return dict(METHOD_CHOICES).get(self.method, str(self.method))
+    def method_obj(self) -> PaymentMethod | None:
+        return PaymentMethod.objects.filter(pk=self.method).first()
 
-    def _qround(self, value: Decimal) -> Decimal:
+    @property
+    def method_label(self) -> str:
+        return self.method_obj.name if self.method_obj else str(self.method)
+
+    def _qround(self, value):
         return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    def apply_commission_snapshot(self, percent: Decimal):
+    def apply_commission_snapshot(self, percent):
         pct = Decimal(percent or 0)
         self.commission_percent = self._qround(pct)
         self.fee = self._qround(self.amount * pct / Decimal("100"))
@@ -108,7 +107,6 @@ class Payment(models.Model):
     
     @property
     def display_fee(self):
-        # для шаблонов: "150.00 (5.00%)" или "—"
         if self.fee is None:
             return "—"
         return f"{self.fee} ({self.commission_percent}%)"

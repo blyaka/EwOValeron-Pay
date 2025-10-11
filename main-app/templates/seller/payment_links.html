@@ -236,20 +236,17 @@
       <div class="form-row">
         <label for="payMethod">Способ оплаты</label>
         <div class="pm-select" id="pm">
-          <input type="hidden" id="payMethod" value="sbp">
+          <input type="hidden" id="payMethod" value="">
           <button type="button" class="pm-control" id="pmCtrl" aria-haspopup="listbox" aria-expanded="false">
-            <span class="pm-value" id="pmValue">СБП</span>
+            <span class="pm-value" id="pmValue">—</span>
             <svg class="pm-caret" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
               <path fill="currentColor" d="M7 10l5 5 5-5z" />
             </svg>
           </button>
-          <div class="pm-menu" id="pmMenu" role="listbox">
-            <div class="pm-item" data-value="sbp" aria-selected="true">СБП</div>
-            <div class="pm-item" data-value="card">Карта</div>
-            <div class="pm-item" data-value="sberpay">СберПэй</div>
-          </div>
+          <div class="pm-menu" id="pmMenu" role="listbox"></div>
         </div>
       </div>
+
 
       <div class="form-row">
         <label for="comment">Комментарий</label>
@@ -296,55 +293,74 @@
 
 <!-- Скрипт выпадающего списка -->
 <script>
-  (() => {
-    const pm = document.getElementById('pm');
-    const ctrl = document.getElementById('pmCtrl');
-    const menu = document.getElementById('pmMenu');
-    const valEl = document.getElementById('pmValue');
-    const hidden = document.getElementById('payMethod');
+(() => {
+  const pm = document.getElementById('pm');
+  const ctrl = document.getElementById('pmCtrl');
+  const menu = document.getElementById('pmMenu');
+  const valEl = document.getElementById('pmValue');
+  const hidden = document.getElementById('payMethod');
 
-    function openPM() {
-      pm.classList.add('open');
-      ctrl.setAttribute('aria-expanded', 'true');
-      // авто-позиция: если снизу мало места — откроем вверх
-      const r = ctrl.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - r.bottom;
-      const spaceAbove = r.top;
-      if (spaceBelow < 220 && spaceAbove > spaceBelow) {
-        menu.style.top = 'auto'; menu.style.bottom = '100%'; menu.style.transform = 'translateY(-6px)';
-        menu.style.maxHeight = Math.max(120, Math.floor(spaceAbove - 20)) + 'px';
-      } else {
-        menu.style.bottom = 'auto'; menu.style.top = '100%'; menu.style.transform = 'translateY(6px)';
-        menu.style.maxHeight = Math.max(120, Math.floor(spaceBelow - 20)) + 'px';
-      }
+  let METHODS = []; // [{id, name, min_amount, is_default}]
+
+  function renderMenu() {
+    menu.innerHTML = METHODS.map(m => `
+      <div class="pm-item" data-id="${m.id}" role="option" aria-selected="false">
+        ${m.name} <small style="opacity:.7">(#${m.id})</small>
+      </div>`).join('');
+  }
+
+  function openPM() {
+    pm.classList.add('open');
+    ctrl.setAttribute('aria-expanded', 'true');
+    const r = ctrl.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    if (spaceBelow < 220 && spaceAbove > spaceBelow) {
+      menu.style.top = 'auto'; menu.style.bottom = '100%'; menu.style.transform = 'translateY(-6px)';
+      menu.style.maxHeight = Math.max(120, Math.floor(spaceAbove - 20)) + 'px';
+    } else {
+      menu.style.bottom = 'auto'; menu.style.top = '100%'; menu.style.transform = 'translateY(6px)';
+      menu.style.maxHeight = Math.max(120, Math.floor(spaceBelow - 20)) + 'px';
     }
-    function closePM() {
-      pm.classList.remove('open');
-      ctrl.setAttribute('aria-expanded', 'false');
-    }
-    function setPM(value, text) {
-      hidden.value = value;
-      valEl.textContent = text;
-      [...menu.children].forEach(i => i.setAttribute('aria-selected', i.dataset.value === value ? 'true' : 'false'));
-      closePM();
-    }
+  }
+  function closePM() {
+    pm.classList.remove('open');
+    ctrl.setAttribute('aria-expanded', 'false');
+  }
+  function setPM(id) {
+    const m = METHODS.find(x => String(x.id) === String(id));
+    if (!m) return;
+    hidden.value = String(m.id);
+    valEl.textContent = m.name;
+    [...menu.children].forEach(i => i.setAttribute('aria-selected', i.dataset.id === String(id) ? 'true' : 'false'));
+    closePM();
+  }
 
-    ctrl.addEventListener('click', (e) => { e.stopPropagation(); pm.classList.contains('open') ? closePM() : openPM(); });
-    menu.addEventListener('click', (e) => {
-      const item = e.target.closest('.pm-item'); if (!item) return;
-      setPM(item.dataset.value, item.textContent.trim());
-    });
-    document.addEventListener('click', (e) => { if (!e.target.closest('#pm')) closePM(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePM(); });
+  ctrl.addEventListener('click', (e) => { e.stopPropagation(); pm.classList.contains('open') ? closePM() : openPM(); });
+  menu.addEventListener('click', (e) => {
+    const item = e.target.closest('.pm-item'); if (!item) return;
+    setPM(item.dataset.id);
+  });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#pm')) closePM(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePM(); });
+  menu.addEventListener('wheel', (e) => e.stopPropagation(), { passive: false });
+  menu.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: false });
 
-    // колесо/свайп не отдаём за пределы
-    menu.addEventListener('wheel', (e) => e.stopPropagation(), { passive: false });
-    menu.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: false });
+  async function loadMethods() {
+    const r = await fetch('/core/api/payment_methods/', { credentials: 'same-origin' });
+    if (!r.ok) throw new Error('methods fetch failed');
+    const d = await r.json();
+    METHODS = Array.isArray(d.methods) ? d.methods : [];
+    renderMenu();
+    // дефолт: is_default или первый активный
+    const def = METHODS.find(m => m.is_default) || METHODS[0];
+    if (def) setPM(def.id);
+  }
 
-    // дефолт: СБП
-    setPM('sbp', 'СБП');
-  })();
+  loadMethods().catch(() => { valEl.textContent = '—'; });
+})();
 </script>
+
 
 
 {% comment %} запрос {% endcomment %}
@@ -364,7 +380,6 @@
     const buyerEmail = $('#buyerEmail'); // <— НОВОЕ
     let __scrollY = 0;
 
-    const METHOD_MAP = { sbp: 44, card: 36, sberpay: 35 };
 
     function getCookie(name) {
       const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
@@ -485,8 +500,9 @@
       const amount = ($('#amount').value || '').trim();
       const comment = ($('#comment').value || '').trim();
       const email = (buyerEmail?.value || '').trim();
-      const methodKey = (payMethodKeyEl.value || 'sbp').toLowerCase();
-      const method = METHOD_MAP[methodKey] || 44;
+
+      const methodId = parseInt((payMethodKeyEl.value || ''), 10);
+      if (!methodId) { alert('Выберите способ оплаты'); return; }
 
       const tagId = (window.__getChosenTagId ? window.__getChosenTagId() : null);
       const tagName = (window.__getChosenTagName ? window.__getChosenTagName() : null);
@@ -502,7 +518,7 @@
 
       const body = new URLSearchParams({
         amount,
-        method,
+        method: String(methodId),              // <-- числовой id метода
         comment,
         ttl_minutes: String(ttlMinutes),
         email,
@@ -541,14 +557,12 @@
         });
 
         closeModal();
-
       } catch (e) {
         alert('Ошибка: ' + e.message);
       } finally {
         genBtn.disabled = false;
         genBtn.textContent = prevText;
       }
-
     });
   })();
 </script>

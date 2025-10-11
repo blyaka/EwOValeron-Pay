@@ -10,7 +10,9 @@ import random
 import json
 from django.utils.text import slugify
 
-from accounts.models import TelegramAccount  # связь TG→User
+from accounts.models import TelegramAccount
+
+from core.models import PaymentMethod
 
 @login_required
 @require_POST
@@ -52,12 +54,10 @@ from django.utils.decorators import method_decorator
 @csrf_exempt
 @require_POST
 def bot_create_link(request):
-    # Проверка секрета
     token = request.headers.get("X-Bot-Token", "")
     if not settings.BOT_INTERNAL_TOKEN or token != settings.BOT_INTERNAL_TOKEN:
         return HttpResponseForbidden("forbidden")
 
-    # Определяем юзера по Telegram ID
     try:
         tg_id = int(request.headers.get("X-Telegram-Id", "0"))
     except ValueError:
@@ -73,26 +73,25 @@ def bot_create_link(request):
     except Exception:
         return HttpResponseBadRequest("bad json")
 
-    # Проставляем дефолты «быстрой» генерации
+
+    default_method = PaymentMethod.get_default_id() or 44
     data = {
         "amount": payload.get("amount"),
-        "method": 44,  # СБП по дефолту
+        "method": default_method,
         "comment": payload.get("comment") or "",
-        "ttl_minutes": int(payload.get("ttl_minutes") or 60*24),  # 24ч
+        "ttl_minutes": int(payload.get("ttl_minutes") or 60*24),
         "tag_id": None,
-        "email": payload.get("email"),  # обязательно
+        "email": payload.get("email"),
     }
 
     form = CreateLinkForm(data)
     if not form.is_valid():
         return JsonResponse({"ok": False, "errors": form.errors}, status=400)
-
     try:
         p = form.save(tg.user)
     except Exception as e:
         logger.exception("bot_create_link error: %s", e)
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
-
     return JsonResponse({
         "ok": True,
         "order_id": p.order_id,
