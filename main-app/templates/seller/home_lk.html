@@ -37,8 +37,14 @@
       <h1>{{ user.username }}</h1>
 
       <div class="tg-connect">
+        {% if tg %}
+          <span class="tg-status">Привязан Telegram: 
+            {% if tg.username %}@{{ tg.username }}{% else %}ID {{ tg.telegram_id }}{% endif %}
+          </span>
+        {% else %}
           <button id="tgBtn" class="tg-btn">Подключить Telegram</button>
           <span id="tgStatus" class="tg-status"></span>
+        {% endif %}
       </div>
   </div>
 
@@ -57,6 +63,7 @@
 </main>
 
 
+{% if not tg %}
 <script>
 const btn = document.getElementById('tgBtn');
 const statusEl = document.getElementById('tgStatus');
@@ -68,21 +75,17 @@ btn.addEventListener('click', async () => {
   try {
     const r = await fetch("{% url 'tg_connect_link' %}", {
       method: 'POST',
-      headers: {
-        'X-CSRFToken': getCookie('csrftoken')
-      }
+      headers: { 'X-CSRFToken': getCookie('csrftoken') }
     });
     const data = await r.json();
 
-    if (data.status === 'already_linked') {
-      statusEl.textContent = `Уже привязан: @${data.username || data.telegram_id}`;
-    } else if (data.status === 'ok') {
+    if (data.status === 'ok') {
       window.open(data.link, '_blank');
       statusEl.textContent = 'Перейдите в Telegram и нажмите Start';
     } else {
       statusEl.textContent = 'Ошибка при создании ссылки';
     }
-  } catch (e) {
+  } catch {
     statusEl.textContent = 'Ошибка соединения';
   } finally {
     btn.disabled = false;
@@ -94,4 +97,7 @@ function getCookie(name) {
   return match ? match.pop() : '';
 }
 </script>
+{% endif %}
+
+
 {% endblock content %}

@@ -73,11 +73,37 @@ def bot_create_link(request):
     except Exception:
         return HttpResponseBadRequest("bad json")
 
+    # 1) если бот прислал метод — уважаем его (и проверяем, что активен)
+    try:
+        forced_method = int(payload.get("method")) if payload.get("method") is not None else None
+    except (TypeError, ValueError):
+        forced_method = None
 
-    default_method = PaymentMethod.get_default_id() or 44
+    # 2) кандидаты, которые точно работают в RUB у Pay API
+    RUB_PREFERRED = [44, 36]  # СБП, Карты
+    # 3) берём дефолт из БД (если активен)
+    default_pm = PaymentMethod.objects.filter(is_active=True, is_default=True).first()
+
+    # 4) выбираем итоговый метод:
+    pm_id = None
+    if forced_method and PaymentMethod.objects.filter(id=forced_method, is_active=True).exists():
+        pm_id = forced_method
+    elif default_pm and default_pm.id in RUB_PREFERRED:
+        pm_id = default_pm.id
+    else:
+        # первый активный из «белого списка»
+        cand = PaymentMethod.objects.filter(is_active=True, id__in=RUB_PREFERRED).order_by("sort","id").first()
+        if cand:
+            pm_id = cand.id
+        elif default_pm:
+            pm_id = default_pm.id  # последний шанс — что есть
+
+    if not pm_id:
+        return JsonResponse({"ok": False, "error": "no active payment methods"}, status=500)
+
     data = {
         "amount": payload.get("amount"),
-        "method": default_method,
+        "method": str(pm_id),
         "comment": payload.get("comment") or "",
         "ttl_minutes": int(payload.get("ttl_minutes") or 60*24),
         "tag_id": None,
@@ -87,11 +113,13 @@ def bot_create_link(request):
     form = CreateLinkForm(data)
     if not form.is_valid():
         return JsonResponse({"ok": False, "errors": form.errors}, status=400)
+
     try:
         p = form.save(tg.user)
     except Exception as e:
         logger.exception("bot_create_link error: %s", e)
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
     return JsonResponse({
         "ok": True,
         "order_id": p.order_id,

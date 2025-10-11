@@ -305,7 +305,7 @@
   function renderMenu() {
     menu.innerHTML = METHODS.map(m => `
       <div class="pm-item" data-id="${m.id}" role="option" aria-selected="false">
-        ${m.name} <small style="opacity:.7">(#${m.id})</small>
+        ${m.name}
       </div>`).join('');
   }
 
