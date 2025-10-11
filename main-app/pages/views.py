@@ -33,7 +33,9 @@ def Custom404(request, exception):
 def home_lk(request):
     tg = None
     if request.user.is_authenticated:
-        tg = TelegramAccount.objects.filter(user=request.user).first()
+        tg = getattr(request.user, 'tg', None)
+        if tg is not None and not isinstance(tg, TelegramAccount):
+            tg = None
     return render(request, 'seller/home_lk.html', {"tg": tg})
 
 
