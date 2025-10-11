@@ -49,6 +49,8 @@ class PaymentMethod(models.Model):
                 name="only_one_default_payment_method",
             )
         ]
+        verbose_name = "Платежный метод"
+        verbose_name_plural = "Платежные методы"
 
     def __str__(self):
         return f"{self.id} — {self.name}"

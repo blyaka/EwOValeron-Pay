@@ -217,3 +217,6 @@ PAY_INTERNAL_TOKEN = os.getenv(
 
 TELEGRAM_BOT_USERNAME = 'evopay_alert_bot'
 BOT_INTERNAL_TOKEN=os.getenv("BOT_INTERNAL_TOKEN", "")
+
+
+PAY_CURRENCY="RUB"

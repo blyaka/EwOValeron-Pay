@@ -11,7 +11,7 @@ from datetime import datetime
 from catalog.models import Product
 from payments.models import Payment
 from accounts.models import SellerProfile
-
+from accounts.models import TelegramAccount
 
 def HomePage(request):
     return render(request, 'pages/home.html')
@@ -30,17 +30,11 @@ def Custom404(request, exception):
 
 
 
-
-
-METHOD_NAMES = {
-    44: "СБП",
-    36: "Карта",
-    35: "СберПэй",
-}
-
-
 def home_lk(request):
-    return render(request, 'seller/home_lk.html')
+    tg = None
+    if request.user.is_authenticated:
+        tg = TelegramAccount.objects.filter(user=request.user).first()
+    return render(request, 'seller/home_lk.html', {"tg": tg})
 
 
 
