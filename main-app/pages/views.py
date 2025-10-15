@@ -215,3 +215,9 @@ def brief_stats(request):
 
 def withdraw (request):
     return render(request, 'seller/withdraw.html')
+
+def chargers_hidtory (request):
+    return render(request, 'seller/chargers_history.html')
+
+def report_generation (request):
+    return render(request, 'seller/report_generation.html')
