@@ -2,7 +2,7 @@ from django.urls import path
 from .views import HomePage, CatalogPage
 
 
-from .views import home_lk, payment_links, payment_status, brief_stats, withdraw, chargers_hidtory, report_generation
+from .views import home_lk, payment_links, payment_status, brief_stats, withdraw, chargers_hidtory, report_generation, notification
 
 urlpatterns = [
     path('', HomePage, name='home'),
@@ -15,4 +15,5 @@ urlpatterns = [
     path('withdraw/', withdraw, name='withdraw'),
     path('chargers-hidtory/', chargers_hidtory, name='chargers-hidtory'),
     path('report-generation/', report_generation, name='report-generation'),
+    path('notification/', notification, name='notification'),
 ]

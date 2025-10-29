@@ -221,3 +221,7 @@ def chargers_hidtory (request):
 
 def report_generation (request):
     return render(request, 'seller/report_generation.html')
+
+def notification (request):
+    return render(request, 'seller/notification.html')
+
