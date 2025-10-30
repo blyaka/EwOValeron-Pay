@@ -45,7 +45,7 @@
 
             <!-- Сумма -->
             <label class="chip chip--toggle" data-chip="amount">
-                <span class="chip__title">Сумма платежа</span>
+                <span class="chip__title">Сумма вывода</span>
                 <span class="chip__body">
                     <input type="number" id="fAmtMin" inputmode="numeric" placeholder="от">
                     <input type="number" id="fAmtMax" inputmode="numeric" placeholder="до">
@@ -116,7 +116,6 @@
                         <th>Дата</th>
                         <th>Сумма вывода <br><small>(₽)</small></th>
                         <th>Сумма USDT к рублю <br><small>(₽)</small></th>
-                        <th>Сумма USDT к рублю <br><small>(₽)</small></th>
                         <th>Эквивалент в USDT с учетом <br>эквайринга (комиссия)&nbsp;<small>[7,5%]</small></th>
                         <th>USDT без учета коммиссии</th>
                     </tr>
@@ -169,7 +168,6 @@
                     tr.innerHTML = `
             <td>${fmtDate(isoDate)}</td>
             <td>${fmtRub(sumRub)}</td>
-            <td>${fmtRate(rateDisplay)}</td>
             <td>${fmtRate(rateCalc)}</td>
             <td>${fmtUSDT(usdtWithFee)}</td>
             <td>${fmtUSDT(usdtNoFee)}</td>
