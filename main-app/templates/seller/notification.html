@@ -1,0 +1,167 @@
+{% extends '_base.html' %} 
+{% load static %} 
+{% load pay_extras %} 
+
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/pages/base_lk.css' %}" />
+<link rel="stylesheet" href="{% static 'css/pages/notification.css' %}" />
+{% endblock styles %} 
+
+
+{% block content %} 
+{% include 'includes/sub_nav_lk.html'%}
+
+<main>
+
+  <section class="notif-section" id="sec-notifs" data-limit="5">
+    <header class="notif-header">
+
+      <div class="notif-title-wrap">
+        <span class="notif-badge" id="count-notifs">0</span>
+        <h2 class="notif-title">Уведомления:</h2>
+      </div>
+
+      <button class="notif-toggle" type="button" aria-expanded="false" aria-label="Показать все">
+
+        <svg width="12" height="21" viewBox="0 0 12 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M11.2213 9.53417L1.4685 0.241666C1.30577 0.0865382 1.08957 -4.54734e-07 0.86475 -4.64561e-07C0.639926 -4.74389e-07 0.423731 0.0865382 0.261001 0.241666L0.2505 0.252167C0.171339 0.32737 0.108305 0.417891 0.0652304 0.518224C0.0221567 0.618556 -5.62668e-05 0.726603 -5.62668e-05 0.835791C-5.62668e-05 0.94498 0.0221567 1.05303 0.0652304 1.15336C0.108305 1.25369 0.171339 1.34421 0.2505 1.41942L9.4345 10.1694L0.2505 18.9159C0.171339 18.9911 0.108305 19.0816 0.0652304 19.182C0.0221567 19.2823 -5.62668e-05 19.3904 -5.62668e-05 19.4995C-5.62668e-05 19.6087 0.0221567 19.7168 0.0652304 19.8171C0.108305 19.9174 0.171339 20.008 0.2505 20.0832L0.261001 20.0937C0.423731 20.2488 0.639926 20.3353 0.86475 20.3353C1.08957 20.3353 1.30577 20.2488 1.4685 20.0937L11.2213 10.8012C11.307 10.7194 11.3753 10.6212 11.422 10.5123C11.4686 10.4034 11.4927 10.2861 11.4927 10.1677C11.4927 10.0492 11.4686 9.93196 11.422 9.82307C11.3753 9.71417 11.307 9.61589 11.2213 9.53417Z" fill="white"/>
+        </svg>
+
+      </button>
+      
+    </header>
+
+    <ul class="notif-list" id="list-notifs"></ul>
+  </section>
+
+
+
+
+  <section class="notif-section" id="sec-incomplete" data-limit="3">
+    <header class="notif-header">
+
+      <div class="notif-title-wrap">
+        <span class="notif-badge" id="count-incomplete">0</span>
+        <h2 class="notif-title">Незавершённые транзакции:</h2>
+      </div>
+      
+      <button class="notif-toggle" type="button" aria-expanded="false" aria-label="Показать все">
+
+         <svg width="12" height="21" viewBox="0 0 12 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M11.2213 9.53417L1.4685 0.241666C1.30577 0.0865382 1.08957 -4.54734e-07 0.86475 -4.64561e-07C0.639926 -4.74389e-07 0.423731 0.0865382 0.261001 0.241666L0.2505 0.252167C0.171339 0.32737 0.108305 0.417891 0.0652304 0.518224C0.0221567 0.618556 -5.62668e-05 0.726603 -5.62668e-05 0.835791C-5.62668e-05 0.94498 0.0221567 1.05303 0.0652304 1.15336C0.108305 1.25369 0.171339 1.34421 0.2505 1.41942L9.4345 10.1694L0.2505 18.9159C0.171339 18.9911 0.108305 19.0816 0.0652304 19.182C0.0221567 19.2823 -5.62668e-05 19.3904 -5.62668e-05 19.4995C-5.62668e-05 19.6087 0.0221567 19.7168 0.0652304 19.8171C0.108305 19.9174 0.171339 20.008 0.2505 20.0832L0.261001 20.0937C0.423731 20.2488 0.639926 20.3353 0.86475 20.3353C1.08957 20.3353 1.30577 20.2488 1.4685 20.0937L11.2213 10.8012C11.307 10.7194 11.3753 10.6212 11.422 10.5123C11.4686 10.4034 11.4927 10.2861 11.4927 10.1677C11.4927 10.0492 11.4686 9.93196 11.422 9.82307C11.3753 9.71417 11.307 9.61589 11.2213 9.53417Z" fill="white"/>
+        </svg>
+        
+      </button>
+
+    </header>
+
+    <ul class="notif-list" id="list-incomplete"></ul>
+  </section>
+
+
+</main>
+
+
+
+
+<script>
+  (() => {
+    // ======= ДАННЫЕ-ПРИМЕРЫ (потом заменишь на fetch) =======
+    const notifications = Array.from({ length: 18 }, (_, i) => ({
+      id: `#${5555 + i + 1}`,
+      status: "Принято",
+      textLeft: "Ссылка на транзакцию была ",
+      highlight: "завершена",
+      textRight:
+        ', посмотрите подробные данные о ней в разделе <a href="/payment-status/" class="row-link">Статус платежей!</a>',
+      ctaLabel: "К результату",
+      ctaUrl: "/payment-status/",
+    }));
+
+
+    const incomplete = Array.from({ length: 20 }, (_, i) => ({
+      id: `#${5555 + i + 1}`,
+      status: "Принято",
+      textLeft: "Ссылка на транзакцию была ",
+      highlight: "просрочена",
+      textRight:
+        ', посмотрите подробные данные о ней в разделе <a href="/payment-links/" class="row-link">Статус сгенерированных ссылок!</a>',
+      ctaLabel: "Подробности о заказе",
+      ctaUrl: "/payment-links/",
+    }));
+
+    const $ = (s) => document.querySelector(s);
+    const elNotifs = $("#list-notifs");
+    const elIncomplete = $("#list-incomplete");
+
+    $("#count-notifs").textContent = notifications.length;
+    $("#count-incomplete").textContent = incomplete.length;
+
+    function rowTemplate(item, warn = false) {
+      return `
+      <li class="notif-row ${item.unread ? "is-unread" : ""}">
+        <div class="row-left">
+          <span class="row-id">${item.id}</span>
+          <span class="row-sep">
+            <svg width="1" height="25" viewBox="0 0 1 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0.5806 8.84533e-05V17.9404H-1.10567e-05V8.84533e-05H0.5806Z" fill="#323232"/>
+            </svg>
+          </span>
+          <span class="row-status">${item.status}</span>
+          <span class="row-msg">
+            ${item.textLeft}
+            <span class="row-hl ${warn ? "row-hl--warn" : ""}">${
+        item.highlight
+      }</span>
+            ${item.textRight}
+          </span>
+        </div>
+        <div class="row-right">
+          <a class="row-cta" href="${item.ctaUrl}">${item.ctaLabel}</a>
+        </div>
+      </li>`;
+    }
+
+    const sections = {
+      "sec-notifs": {
+        el: elNotifs,
+        data: notifications,
+        warn: false,
+        limit: 5,
+      },
+      "sec-incomplete": {
+        el: elIncomplete,
+        data: incomplete,
+        warn: true,
+        limit: 3,
+      },
+    };
+
+   
+    function renderSection(sectionId, expanded) {
+      const s = sections[sectionId];
+      let arr = s.data.slice().reverse(); 
+      if (!expanded) arr = arr.slice(0, s.limit); 
+      s.el.innerHTML = arr.map((d) => rowTemplate(d, s.warn)).join("");
+    }
+
+    renderSection("sec-notifs", false);
+    renderSection("sec-incomplete", false);
+
+    document.querySelectorAll(".notif-section").forEach((section) => {
+      const id = section.id;
+      const btn = section.querySelector(".notif-toggle");
+      btn.addEventListener("click", () => {
+        const expanded = btn.getAttribute("aria-expanded") === "true";
+        btn.setAttribute("aria-expanded", expanded ? "false" : "true");
+        renderSection(id, !expanded);
+      });
+    });
+
+    // Если будешь подключать данные с бэка:
+    // fetch('/api/notifications').then(r=>r.json()).then(data => { ...render... })
+  })();
+</script>
+
+{% endblock content %}

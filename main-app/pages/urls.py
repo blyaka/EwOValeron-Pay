@@ -15,5 +15,5 @@ urlpatterns = [
     path('withdraw/', withdraw, name='withdraw'),
     path('chargers-hidtory/', chargers_hidtory, name='chargers-hidtory'),
     path('report-generation/', report_generation, name='report-generation'),
-    path('notification/', notification, name='notification'),
+    path('notification/', notification, name='notification')
 ]
