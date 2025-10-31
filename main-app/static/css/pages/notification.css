@@ -1,6 +1,6 @@
 .notif-section {
   margin-top: 70px;
-  padding: 0 250px;
+  padding: 0 240px;
 }
 
 #sec-incomplete {
@@ -85,14 +85,14 @@
 .row-left {
   display: flex;
   align-items: center;
-  gap: 30px;
+  gap: 15px;
   flex: 1 1 auto;
   min-width: 0;
 }
 .row-id {
   font-weight: 300;
   font-size: 0.938rem;
-  color: #3a3a3a;
+  color: #c9c9c9;
 }
 .row-sep {
   opacity: 5;
@@ -100,42 +100,50 @@
 .row-status {
   font-weight: 300;
   font-size: 0.938rem;
-  color: #3a3a3a;
+  color: #c9c9c9;
   letter-spacing: -0.5px;
 }
 .row-msg {
-  font-size: 0.688rem;
+  font-size: 0.813rem;
   font-weight: 300;
   letter-spacing: -0.5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #3a3a3a;
-  display: inline-flex;
+  color: #c9c9c9;
+
   align-items: center;
+  display: block;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: normal;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.row-hl,
+.row-link {
+  white-space: nowrap;
 }
 
 .row-hl {
-  color: #1ead53;
+  color: #28a656;
   font-weight: 400;
-  margin-left: 2px;
+  margin-left: 3px;
 }
 .row-hl--warn {
   color: #ff4d4d;
-  font-weight: 600;
+  font-weight: 400;
 }
 .row-link {
   color: #cdcdcd;
-  margin-left: 2px;
-  transition: color 0.2s ease;
+  margin-left: 3px;
+  text-decoration: underline;
 }
-
 .row-link:hover {
-  color: #3a3a3a;
+  color: var(--muted);
 }
-
 .row-right {
   flex: 0 0 auto;
+  align-self: flex-start;
 }
 .row-cta {
   display: inline-flex;
@@ -156,20 +164,13 @@
   transform: translateY(-0.8px);
 }
 
-
-
-
-
-
-
 @media (max-width: 767px) {
-
   .notif-section {
     margin-top: 50px;
     padding: 0 18px;
   }
 
-  #sec-notifs{
+  #sec-notifs {
     margin-top: 80px;
   }
   #sec-incomplete {
@@ -203,7 +204,7 @@
   }
 
   .notif-row {
-    flex: 0 0 300px; 
+    flex: 0 0 300px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -258,7 +259,19 @@
   }
 }
 
+@media (min-width: 768px) and (max-width: 1194px) {
+  .notif-section {
+    padding: 0 56px; 
+    margin-top: 60px;
+  }
+  #sec-notifs {
+    margin-top: 120px;
+  }
 
+  .notif-badge {
+    width: 44px;
+    height: 44px;
+    font-size: 0.95rem;
+  }
 
-
-
+}
