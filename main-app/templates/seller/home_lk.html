@@ -8,19 +8,23 @@
     margin-top: 10px;
 }
 .tg-btn {
-    display: inline-block;
-    background: var(--accent, #6a5acd);
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--accent);
+    border: 1px solid rgba(255, 255, 255, .1);
     color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 10px 16px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background 0.2s ease;
+    font-weight: 400;
+    font-size: 0.875rem;
+    transition: 200ms ease;
+    box-shadow: 0 8px 20px rgba(255, 42, 79, .25);
 }
+
 .tg-btn:hover {
-    background: #7c6df0;
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, .06);
+    box-shadow: 0 12px 28px rgba(255, 42, 79, .35);
 }
+
 .tg-status {
     display: block;
     margin-top: 8px;
