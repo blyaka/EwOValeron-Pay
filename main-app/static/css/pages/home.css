@@ -198,7 +198,8 @@ section .section-title {
   display: flex;
   gap: 16px;
   padding: 16px;
-  animation: rail var(--speed) linear infinite;
+  user-select: none;
+  cursor: grab;
   will-change: transform;
 }
 
@@ -466,6 +467,6 @@ section .section-title {
   .rail {
     animation: none !important;
     transform: translate3d(0, 0, 0);
-    touch-action: pan-y; 
-}
+    touch-action: pan-y;
+  }
 }

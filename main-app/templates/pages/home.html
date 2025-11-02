@@ -455,47 +455,36 @@
 </script>
 
 <script>
-  (function initMobileReviews() {
-    const mq = window.matchMedia("(max-width: 767px)");
-    if (!mq.matches) return;
-
-    const rail = document.getElementById("rail"); // дорожка с карточками
+  (function initReviews() {
+    const rail = document.getElementById("rail");
     if (!rail) return;
-    const wrap = rail.parentElement; // контейнер
+    const wrap = rail.parentElement;
 
-    // дублируем содержимое для бесшовной прокрутки (если нужно)
     const needClone = rail.scrollWidth < wrap.clientWidth * 2;
-    if (needClone)
-      rail.append(...Array.from(rail.children).map((n) => n.cloneNode(true)));
+    if (needClone) rail.append(...Array.from(rail.children).map(n => n.cloneNode(true)));
 
-    // параметры движения
-    let base = 40; // базовая скорость в px/сек (самокрут)
-    let vx = 0; // добавочная скорость от «флика» (px/сек), затухает
-    const friction = 0.94; // коэффициент трения за кадр (0.90–0.97 норм)
-    const vmax = 1200; // предел ускорения
-    const vmin = -800; // предел в обратную сторону
-    let x = 0; // смещение дорожки
+    let base = 50;           
+    let vx = 0;              
+    const friction = 0.94;   
+    const vmax = 1200;
+    const vmin = -800;
+    let x = 0;
     let last = performance.now();
 
-    // ширина половины «петли»
     const half = () => rail.scrollWidth / 2;
 
-    // Рендер-цикл
     function tick(t) {
-      const dt = Math.min(50, t - last) / 1000; // сек, с ограничением
+      const dt = Math.min(50, t - last) / 1000;
       last = t;
 
-      // движение: базовая скорость + инерция от свайпа
       x -= (base + vx) * dt;
 
-      // бесшовное оборачивание
       const H = half();
       if (x <= -H) x += H;
-      if (x >= 0) x -= H;
+      if (x >= 0)  x -= H;
 
       rail.style.transform = `translate3d(${x}px,0,0)`;
 
-      // затухание «флика»
       vx *= friction;
       if (Math.abs(vx) < 2) vx = 0;
 
@@ -503,51 +492,35 @@
     }
     requestAnimationFrame(tick);
 
-    // Жест «флик»: чем быстрее свайп, тем больше добавим скорости
     let pd = null;
-    rail.addEventListener(
-      "pointerdown",
-      (e) => {
-        pd = { x: e.clientX, t: performance.now(), id: e.pointerId };
-        rail.setPointerCapture(e.pointerId);
-      },
-      { passive: true }
-    );
+    rail.addEventListener("pointerdown", (e) => {
+      pd = { x: e.clientX, t: performance.now(), id: e.pointerId };
+      rail.setPointerCapture(e.pointerId);
+      rail.classList.add("dragging");
+      e.preventDefault();
+    }, { passive: false });
 
-    rail.addEventListener(
-      "pointermove",
-      (e) => {
-        if (!pd) return;
-        const now = performance.now();
-        const dx = e.clientX - pd.x;
-        const dt = Math.max(1, now - pd.t); // мс
-        // мгновенная скорость свайпа (px/сек). Знак: свайп влево ускоряет влево.
-        const instV = (-dx / dt) * 1000;
-        // сгладим и усилим
-        const k = 0.7;
-        vx = Math.max(vmin, Math.min(vmax, vx + instV * k));
-        pd.x = e.clientX;
-        pd.t = now;
-      },
-      { passive: true }
-    );
+    rail.addEventListener("pointermove", (e) => {
+      if (!pd) return;
+      const now = performance.now();
+      const dx = e.clientX - pd.x;
+      const dt = Math.max(1, now - pd.t);
+      const instV = (-dx / dt) * 1000; 
+      vx = Math.max(vmin, Math.min(vmax, vx + instV * 0.7));
+      pd.x = e.clientX; pd.t = now;
+    }, { passive: true });
 
     ["pointerup", "pointercancel", "pointerleave"].forEach((type) => {
-      rail.addEventListener(
-        type,
-        (e) => {
-          pd = null;
-        },
-        { passive: true }
-      );
+      rail.addEventListener(type, () => {
+        pd = null;
+        rail.classList.remove("dragging");
+      }, { passive: true });
     });
 
-    // на всякий — пересчёт после поворота экрана
-    window.addEventListener("orientationchange", () => {
-      x = 0;
-      rail.style.transform = "translate3d(0,0,0)";
-    });
+    window.addEventListener("resize", () => { x = 0; rail.style.transform = "translate3d(0,0,0)"; });
+    window.addEventListener("orientationchange", () => { x = 0; rail.style.transform = "translate3d(0,0,0)"; });
   })();
 </script>
+
 
 {% endblock content %}
