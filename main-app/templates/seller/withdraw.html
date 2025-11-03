@@ -299,6 +299,49 @@
     })();
 </script>
 
+<script>
+    (function () {
+      function initSection(sec) {
+        const icon = sec.querySelector('[data-reset], #filtersReset, .f-icon');
+        if (!icon) return;
+
+        const inputs = [...sec.querySelectorAll('.ps-filters-container input')];
+
+        const hasAny = () =>
+          inputs.some(i =>
+            (i.type === 'checkbox' || i.type === 'radio') ? i.checked
+              : (i.value && String(i.value).trim() !== '')
+          );
+
+        const updateIcon = () => {
+          icon.classList.toggle('has-filters', hasAny());
+        };
+        inputs.forEach(i => {
+          i.addEventListener('input', updateIcon);
+          i.addEventListener('change', updateIcon);
+        });
+        icon.addEventListener('click', () => {
+          if (!icon.classList.contains('has-filters')) return;
+          setTimeout(() => {
+            if (hasAny()) {
+              inputs.forEach(i => {
+                if (i.type === 'checkbox' || i.type === 'radio') i.checked = false;
+                else i.value = '';
+              });
+              sec.dispatchEvent(new CustomEvent('filters:reset', { bubbles: true, detail: { section: sec } }));
+            }
+            updateIcon();
+          }, 0);
+        });
+        updateIcon();
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.ps-filters').forEach(initSection);
+      });
+    })();
+</script>
+
 
 
 {% endblock content %}
