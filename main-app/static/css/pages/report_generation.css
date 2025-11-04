@@ -52,6 +52,7 @@ main {
   place-items: center;
   border-radius: 50%;
   background: var(--accent);
+  aspect-ratio: 1 / 1;
 }
 
 .report-header h1 {
@@ -262,8 +263,8 @@ main {
     align-items: flex-start;
   }
   .report-header span {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
     font-size: 0.9rem;
   }
   .report-header h1 {
@@ -286,4 +287,11 @@ main {
     justify-content: center;
     max-width: 320px;
   }
+
+  .date-row {
+    grid-template-columns: unset;
+  }
+
 }
+
+
