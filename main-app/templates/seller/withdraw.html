@@ -5,6 +5,7 @@
 {% block styles %}
 <link rel="stylesheet" href="{% static 'css/pages/base_lk.css'%}">
 <link rel="stylesheet" href="{% static 'css/pages/payment-links.css'%}">
+<link rel="stylesheet" href="{% static 'css/pages/withdraw.css'%}">
 {% endblock styles %}
 
 {% block content %}
@@ -15,6 +16,19 @@
 
 <main>
 
+    <div class="debt-wrapper">
+
+        <section class="debt-info">
+            <span class="debt-label">Текущий долг:</span>
+            <span class="debt-line"></span>
+            <span class="debt-value">890 ₽</span>
+        </section>
+
+        <section class="debt-action">
+            <button class="btn-debt">Уменьшить</button>
+        </section>
+
+    </div>
 
 
     <section class="ps-filters">
