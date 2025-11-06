@@ -13,9 +13,10 @@
   align-items: flex-end;
   gap: 5px;
   min-width: 200px;
+  grid-template-columns: auto 1fr auto;
 }
 
-.debt-label {
+.debt-lab {
   color: var(--text);
   font-size: 1.25rem;
   font-weight: 300;
@@ -29,9 +30,10 @@
 }
 
 .debt-value {
-  color: #ff4d61;
+  color: var(--accent);
   font-weight: 500;
   font-size: 1.375rem;
+  white-space: nowrap;
 }
 
 .debt-action .btn-debt {
@@ -56,74 +58,239 @@
 @media (max-width: 767px) {
   .debt-wrapper {
     flex-direction: column;
-    gap: 10px;
-    justify-content: center;
-    padding: 0 20px 16px;
+    align-items: stretch;
+    gap: 12px;
+    padding: 0 16px 16px;
   }
 
   .debt-info {
-    justify-content: center;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "label value"
+      "line  line";
+    row-gap: 8px;
+    min-width: 0;
     width: 100%;
+  }
+
+  .debt-label {
+    font-size: 1rem;
+  }
+  .debt-value {
+    justify-self: end;
+    font-size: 1.25rem;
+  }
+  .debt-line {
+    grid-area: line;
+    width: 100%;
+    min-width: 0;
+    opacity: 0.7;
+  }
+
+  .debt-action .btn-debt {
+    width: 100%;
+    padding: 12px 18px;
   }
 }
 
-/* поля как на модалках отчётов */
-.rg-input {
-  width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text);
-  border-radius: 12px;
-  padding: 12px 14px;
-  outline: none;
-  transition: border-color 0.2s ease;
-}
-.rg-input:focus {
-  border-color: rgba(255, 255, 255, 0.22);
+.debt-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
-/* псевдо-селект */
-.rg-select {
+.debt-modal-backdrop.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+body.debt-scroll-lock {
+  overflow: hidden;
+}
+
+.debt-modal {
+  width: min(550px, 92vw);
+  background: var(--panel);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 34px 28px 24px;
   position: relative;
 }
-.rg-select-input {
-  padding-right: 34px;
+
+.debt-modal-backdrop.open .debt-modal {
+  transform: none;
+  opacity: 1;
 }
-.rg-caret {
+
+.debt-title {
+  text-align: center;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 24px;
+  margin: 6px 0 18px;
+  letter-spacing: 0.2px;
+}
+
+.debt-modal-close {
   position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 12px;
+  top: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--muted);
-  pointer-events: none;
+  cursor: pointer;
 }
-.rg-options {
+
+.debt-modal-close:hover {
+  color: var(--text);
+}
+
+.debt-form {
+  display: block;
+}
+.debt-group {
+  margin: 18px 0 20px;
+}
+.debt-label {
+  display: block;
+  margin: 25px 0 8px;
+  color: var(--muted);
+  font-size: 0.938rem;
+}
+
+.debt-input {
+  width: 100%;
+  height: 48px;
+  background: var(--panel-2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0 14px;
+  outline: none;
+  font-size: 1rem;
+  font-weight: 400;
+}
+.debt-input::placeholder {
+  color: #a6a6a68b;
+}
+
+.debt-hint {
+  margin-top: 8px;
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.debt-hint b {
+  color: var(--accent);
+}
+
+.debt-err {
+  color: var(--accent);
+}
+
+.debt-select {
+  position: relative;
+}
+.debt-select-input {
+  padding-right: 28px;
+}
+.debt-caret {
+  position: absolute;
+  right: 20px;
+  top: 55%;
+  transform: translateY(-50%) rotate(0);
+  transition: transform 0.2s ease;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.debt-select[data-open="true"] .debt-caret {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.debt-options {
   position: absolute;
   left: 0;
   right: 0;
   top: calc(100% + 6px);
-  max-height: 210px;
-  overflow: auto;
-  list-style: none;
-  margin: 0;
-  padding: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(6px);
+  background: var(--panel-2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   display: none;
-  z-index: 5;
+  max-height: 180px;
+  overflow: auto;
+  padding: 8px;
+  z-index: calc(1000 + 1);
+  box-shadow: var(--shadow);
 }
-.rg-select[data-open="true"] .rg-options {
+
+.debt-select[data-open="true"] .debt-options {
   display: block;
 }
-.rg-options li {
-  padding: 10px 10px;
+
+.debt-option {
+  padding: 10px 12px;
   border-radius: 10px;
-  color: var(--muted);
+  background: #24262d7a;
+  margin: 6px 0;
   cursor: pointer;
-}
-.rg-options li:hover {
-  background: rgba(129, 24, 44, 1);
+  user-select: none;
+  border: 1px solid transparent;
   color: var(--text);
+}
+
+.debt-option:hover {
+  border-color: var(--muted);
+}
+
+.debt-options::-webkit-scrollbar {
+  width: 8px;
+}
+.debt-options::-webkit-scrollbar-track {
+  background: #24262d7a;
+  border-radius: 12px;
+}
+.debt-options::-webkit-scrollbar-thumb {
+  background: #2a2d33;
+  border-radius: 12px;
+}
+
+.debt-btn-primary {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  border: 0;
+  border-radius: 14px;
+  padding: 16px 18px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow: 0 8px 32px rgba(255, 42, 79, 0.35);
+  transition: transform 0.06s ease, opacity 0.2s ease;
+}
+
+.debt-btn-primary:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 767px) {
+  .debt-modal {
+    padding: 34px 12px 22px;
+  }
 }

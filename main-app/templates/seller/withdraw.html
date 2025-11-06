@@ -1,361 +1,754 @@
-{% extends '_base.html' %}
-{% load static %}
-{% load pay_extras %}
+{% extends '_base.html' %} 
+{% load static %} 
+{% load pay_extras %} 
 
 {% block styles %}
-<link rel="stylesheet" href="{% static 'css/pages/base_lk.css'%}">
-<link rel="stylesheet" href="{% static 'css/pages/payment-links.css'%}">
-<link rel="stylesheet" href="{% static 'css/pages/withdraw.css'%}">
-{% endblock styles %}
+<link rel="stylesheet" href="{% static 'css/pages/base_lk.css'%}" />
+<link rel="stylesheet" href="{% static 'css/pages/payment-links.css'%}" />
+<link rel="stylesheet" href="{% static 'css/pages/withdraw.css'%}" />
+{% endblock styles %} 
 
-{% block content %}
-
-
-{% include 'includes/sub_nav_lk.html' %}
-
+{% block content %} 
+{% include 'includes/sub_nav_lk.html'%}
 
 <main>
+  <div class="debt-wrapper">
+    <section class="debt-info">
+      <span class="debt-lab">Текущий долг:</span>
+      <span class="debt-line"></span>
+      <span class="debt-value">890 ₽</span>
+    </section>
 
-    <div class="debt-wrapper">
+    <section class="debt-action">
+      <button class="btn-debt">Уменьшить</button>
+    </section>
+  </div>
 
-        <section class="debt-info">
-            <span class="debt-label">Текущий долг:</span>
-            <span class="debt-line"></span>
-            <span class="debt-value">890 ₽</span>
-        </section>
 
-        <section class="debt-action">
-            <button class="btn-debt">Уменьшить</button>
-        </section>
+
+
+
+  <div id="m-debt" class="debt-modal-backdrop" aria-hidden="true">
+    
+    <div class="debt-modal" role="dialog" aria-modal="true" aria-labelledby="debtTitle">
+      <button class="debt-modal-close" type="button" aria-label="Закрыть">&times;</button>
+      <h2 id="debtTitle" class="debt-title">Уменьшение долга:</h2>
+
+      <form id="debtForm" class="debt-form" novalidate>
+
+        <div class="debt-group">
+
+          <label class="debt-label">Выбрать продавца</label>
+
+          <div class="debt-select" id="sellerSelect" data-open="false">
+            <input id="sellerInput" class="debt-input debt-select-input" type="text" placeholder="Выберите продавца или начните вводить имя…" autocomplete="off" aria-expanded="false" aria-controls="sellerOptions"/>
+
+            <svg class="debt-caret" width="12" height="7" viewBox="0 0 12 7" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M12 0.436386C12 0.325684 11.9597 0.212394 11.8815 0.127436C11.7251 -0.0424795 11.4692 -0.0424796 11.3129 0.127436L5.96031 5.94318L0.685952 0.212392C0.529569 0.0424771 0.273671 0.0424771 0.117288 0.212392C-0.0390943 0.382307 -0.0390944 0.660352 0.117288 0.830267L5.67598 6.87256C5.83236 7.04248 6.08826 7.04248 6.24464 6.87256L11.8815 0.747885C11.9621 0.660353 12 0.549663 12 0.436386Z" fill="white"/>
+            </svg>
+
+            <div id="sellerOptions" class="debt-options" role="listbox" aria-label="Список продавцов"></div>
+          </div>
+
+
+          <div id="debtInfo" class="debt-hint" hidden> Текущий долг продавца: <b><span id="debtVal">0</span> ₽</b></div>
+
+        </div>
+
+
+
+        <div class="debt-group"> <label for="amountInput" class="debt-label">Укажите сумму уменьшения долга (₽):</label>
+
+          <input id="amountInput" class="debt-input" type="number" min="0" step="1" placeholder="0" inputmode="numeric"/>
+
+          <div id="amountErr" class="debt-hint debt-err" hidden>Сумма превышает текущий долг продавца</div>
+
+        </div>
+
+
+
+        <button id="submitDebt" class="debt-btn-primary" type="submit">Подтвердить</button>
+      </form>
 
     </div>
-
-
-    <section class="ps-filters">
-
-        <button class="ps-filters-toggle" type="button" aria-expanded="false">
-            <span>Фильтры</span>
-            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                    d="M6.7 8.7a1 1 0 0 1 1.4 0L12 12.6l3.9-3.9a1 1 0 1 1 1.4 1.4l-4.6 4.6a1 1 0 0 1-1.4 0L6.7 10.1a1 1 0 0 1 0-1.4z"
-                    fill="currentColor" />
-            </svg>
-        </button>
-
-        <div class="ps-filters-container">
-            <button class="f-icon" id="filtersReset" aria-label="Сбросить фильтры" title="Сбросить фильтры">
-                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                    <path fill="currentColor" d="M3 5h18l-6.5 7.5v5.75l-5 2.5V12.5L3 5z" />
-                </svg>
-            </button>
-
-            <label class="chip chip--toggle" data-chip="date">
-                <span class="chip__title">Дата</span>
-                <span class="chip__body">
-                    <input type="date" id="fDateFrom" placeholder="с">
-                    <input type="date" id="fDateTo" placeholder="по">
-                </span>
-            </label>
-
-            <!-- Сумма -->
-            <label class="chip chip--toggle" data-chip="amount">
-                <span class="chip__title">Сумма вывода</span>
-                <span class="chip__body">
-                    <input type="number" id="fAmtMin" inputmode="numeric" placeholder="от">
-                    <input type="number" id="fAmtMax" inputmode="numeric" placeholder="до">
-                </span>
-            </label>
-
-        </div>
-
-
-    </section>
-
-
-    <!-- Скрипт для мобильных фильтров -->
-    <script>
-        (() => {
-            const section = document.querySelector('.ps-filters');
-            if (!section) return;
-            const toggle = section.querySelector('.ps-filters-toggle');
-            const box = section.querySelector('.ps-filters-container');
-
-            const mq = window.matchMedia('(max-width: 767px)');
-            const setup = () => {
-                if (mq.matches) {
-                    box.hidden = true;
-                    section.classList.remove('is-open');
-                    toggle.setAttribute('aria-expanded', 'false');
-                } else {
-                    box.hidden = false;
-                    box.style.maxHeight = 'none';
-                    section.classList.remove('is-open');
-                    toggle.setAttribute('aria-expanded', 'true');
-                }
-            };
-            setup();
-            mq.addEventListener('change', setup);
-
-            toggle.addEventListener('click', () => {
-                const open = section.classList.toggle('is-open');
-                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-                box.hidden = !open;
-            });
-        })();
-    </script>
+  </div>
 
 
 
 
-    <section class="ps-wrap">
-        <div class="ps-scroll">
-            <table class="ps-table" id="paymentsTable">
-                <thead>
-                    <tr>
-                        <th>Дата</th>
-                        <th>Сумма вывода <br><small>(₽)</small></th>
-                        <th>Сумма USDT к рублю <br><small>(₽)</small></th>
-                        <th>Эквивалент в USDT с учетом <br>эквайринга (комиссия)&nbsp;<small>[7,5%]</small></th>
-                        <th>USDT без учета коммиссии</th>
-                    </tr>
-                </thead>
-                <tbody>
+  <section class="ps-filters">
+    <button class="ps-filters-toggle" type="button" aria-expanded="false">
+      <span>Фильтры</span>
+      <svg
+        class="chev"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          d="M6.7 8.7a1 1 0 0 1 1.4 0L12 12.6l3.9-3.9a1 1 0 1 1 1.4 1.4l-4.6 4.6a1 1 0 0 1-1.4 0L6.7 10.1a1 1 0 0 1 0-1.4z"
+          fill="currentColor"
+        />
+      </svg>
+    </button>
 
-                </tbody>
-            </table>
-        </div>
-    </section>
+    <div class="ps-filters-container">
+      <button
+        class="f-icon"
+        id="filtersReset"
+        aria-label="Сбросить фильтры"
+        title="Сбросить фильтры"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M3 5h18l-6.5 7.5v5.75l-5 2.5V12.5L3 5z"
+          />
+        </svg>
+      </button>
 
+      <label class="chip chip--toggle" data-chip="date">
+        <span class="chip__title">Дата</span>
+        <span class="chip__body">
+          <input type="date" id="fDateFrom" placeholder="с" />
+          <input type="date" id="fDateTo" placeholder="по" />
+        </span>
+      </label>
 
-    <script>
-        (() => {
-            const tbody = document.querySelector('#paymentsTable tbody');
-            if (!tbody) return;
+      <!-- Сумма -->
+      <label class="chip chip--toggle" data-chip="amount">
+        <span class="chip__title">Сумма вывода</span>
+        <span class="chip__body">
+          <input
+            type="number"
+            id="fAmtMin"
+            inputmode="numeric"
+            placeholder="от"
+          />
+          <input
+            type="number"
+            id="fAmtMax"
+            inputmode="numeric"
+            placeholder="до"
+          />
+        </span>
+      </label>
+    </div>
+  </section>
 
-            // % комиссии эквайринга
-            const FEE = 7.5; // поменяй при необходимости
+  <!-- Скрипт для мобильных фильтров -->
+  <script>
+    (() => {
+      const section = document.querySelector(".ps-filters");
+      if (!section) return;
+      const toggle = section.querySelector(".ps-filters-toggle");
+      const box = section.querySelector(".ps-filters-container");
 
-            // ВРЕМЕННО: данные-пример. Подставь свой fetch и передай в render(rows).
-            const rows = [
-                // date, sum_rub, rate_usdt_rub_display, rate_rub_per_usdt_calc
-                ["2025-09-22T13:41:00", 2_500_000, 84.03, 84.03],
-                ["2025-09-22T13:41:00", 2_500_000, 84.03, 84.03],
-                ["2025-09-22T13:41:00", 2_500_000, 84.03, 84.03],
-            ];
+      const mq = window.matchMedia("(max-width: 767px)");
+      const setup = () => {
+        if (mq.matches) {
+          box.hidden = true;
+          section.classList.remove("is-open");
+          toggle.setAttribute("aria-expanded", "false");
+        } else {
+          box.hidden = false;
+          box.style.maxHeight = "none";
+          section.classList.remove("is-open");
+          toggle.setAttribute("aria-expanded", "true");
+        }
+      };
+      setup();
+      mq.addEventListener("change", setup);
 
-            // Хелперы форматирования
-            const fmtRub = n => new Intl.NumberFormat('ru-RU').format(n);
-            const fmtUSDT = n => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 12 }).format(n) + '$';
-            const fmtRate = n => (typeof n === 'number' ? n.toFixed(2) : n);
-            const fmtDate = iso => {
-                const d = new Date(iso);
-                const dd = String(d.getDate()).padStart(2, '0');
-                const mm = String(d.getMonth() + 1).padStart(2, '0');
-                const yyyy = d.getFullYear();
-                const hh = String(d.getHours()).padStart(2, '0');
-                const min = String(d.getMinutes()).padStart(2, '0');
-                return `${dd}.${mm}.${yyyy} | ${hh}:${min}`;
-            };
+      toggle.addEventListener("click", () => {
+        const open = section.classList.toggle("is-open");
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        box.hidden = !open;
+      });
+    })();
+  </script>
 
-            function render(data) {
-                const fr = document.createDocumentFragment();
-                for (const [isoDate, sumRub, rateDisplay, rateCalc] of data) {
-                    const usdtNoFee = sumRub / rateCalc;
-                    const usdtWithFee = usdtNoFee * (1 - FEE / 100);
+  <section class="ps-wrap">
+    <div class="ps-scroll">
+      <table class="ps-table" id="paymentsTable">
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Сумма вывода <br /><small>(₽)</small></th>
+            <th>Сумма USDT к рублю <br /><small>(₽)</small></th>
+            <th>
+              Эквивалент в USDT с учетом <br />эквайринга (комиссия)&nbsp;<small
+                >[7,5%]</small
+              >
+            </th>
+            <th>USDT без учета коммиссии</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
 
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
+  <script>
+    (() => {
+      const tbody = document.querySelector("#paymentsTable tbody");
+      if (!tbody) return;
+
+      // % комиссии эквайринга
+      const FEE = 7.5; // поменяй при необходимости
+
+      // ВРЕМЕННО: данные-пример. Подставь свой fetch и передай в render(rows).
+      const rows = [
+        // date, sum_rub, rate_usdt_rub_display, rate_rub_per_usdt_calc
+        ["2025-09-22T13:41:00", 2_500_000, 84.03, 84.03],
+        ["2025-09-22T13:41:00", 2_500_000, 84.03, 84.03],
+        ["2025-09-22T13:41:00", 2_500_000, 84.03, 84.03],
+      ];
+
+      // Хелперы форматирования
+      const fmtRub = (n) => new Intl.NumberFormat("ru-RU").format(n);
+      const fmtUSDT = (n) =>
+        new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 12 }).format(
+          n
+        ) + "$";
+      const fmtRate = (n) => (typeof n === "number" ? n.toFixed(2) : n);
+      const fmtDate = (iso) => {
+        const d = new Date(iso);
+        const dd = String(d.getDate()).padStart(2, "0");
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const yyyy = d.getFullYear();
+        const hh = String(d.getHours()).padStart(2, "0");
+        const min = String(d.getMinutes()).padStart(2, "0");
+        return `${dd}.${mm}.${yyyy} | ${hh}:${min}`;
+      };
+
+      function render(data) {
+        const fr = document.createDocumentFragment();
+        for (const [isoDate, sumRub, rateDisplay, rateCalc] of data) {
+          const usdtNoFee = sumRub / rateCalc;
+          const usdtWithFee = usdtNoFee * (1 - FEE / 100);
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
             <td>${fmtDate(isoDate)}</td>
             <td>${fmtRub(sumRub)}</td>
             <td>${fmtRate(rateCalc)}</td>
             <td>${fmtUSDT(usdtWithFee)}</td>
             <td>${fmtUSDT(usdtNoFee)}</td>
         `;
-                    fr.appendChild(tr);
-                }
-                tbody.innerHTML = '';
-                tbody.appendChild(fr);
-            }
+          fr.appendChild(tr);
+        }
+        tbody.innerHTML = "";
+        tbody.appendChild(fr);
+      }
 
-            // Если хочешь тянуть с бэка, замени блок ниже на свой fetch
-            // fetch('/api/payouts?…').then(r=>r.json()).then(render);
-            render(rows);
-        })();
-    </script>
+      // Если хочешь тянуть с бэка, замени блок ниже на свой fetch
+      // fetch('/api/payouts?…').then(r=>r.json()).then(render);
+      render(rows);
+    })();
+  </script>
 
+  <div class="pagination" data-prev="{{ prev_url }}" data-next="{{ next_url }}">
+    <button
+      class="page-btn prev"
+      aria-label="Предыдущая"
+      {%
+      if
+      not
+      page_obj.has_previous
+      %}disabled
+      aria-disabled="true"
+      {%
+      endif
+      %}
+    >
+      <svg
+        width="7"
+        height="13"
+        viewBox="0 0 7 13"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
+          fill="white"
+        />
+      </svg>
+    </button>
 
+    {% for p in pages %} {% if p.disabled %}
+    <a href="#" class="page-num disabled" tabindex="-1" aria-disabled="true"
+      >…</a
+    >
+    {% else %}
+    <a href="{{ p.url }}" class="page-num{% if p.active %} active{% endif %}"
+      >{{ p.label }}</a
+    >
+    {% endif %} {% endfor %}
 
-
-
-    <div class="pagination" data-prev="{{ prev_url }}" data-next="{{ next_url }}">
-        <button class="page-btn prev" aria-label="Предыдущая" {% if not page_obj.has_previous %}disabled
-            aria-disabled="true" {% endif %}>
-            <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg">
-                <path
-                    d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
-                    fill="white" />
-            </svg>
-        </button>
-
-        {% for p in pages %}
-        {% if p.disabled %}
-        <a href="#" class="page-num disabled" tabindex="-1" aria-disabled="true">…</a>
-        {% else %}
-        <a href="{{ p.url }}" class="page-num{% if p.active %} active{% endif %}">{{ p.label }}</a>
-        {% endif %}
-        {% endfor %}
-
-        <button class="page-btn next" aria-label="Следующая" {% if not page_obj.has_next %}disabled aria-disabled="true"
-            {% endif %}>
-            <svg width="7" height="13" viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg"
-                style="transform: rotate(180deg);">
-                <path
-                    d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
-                    fill="white" />
-            </svg>
-        </button>
-    </div>
-
-
+    <button
+      class="page-btn next"
+      aria-label="Следующая"
+      {%
+      if
+      not
+      page_obj.has_next
+      %}disabled
+      aria-disabled="true"
+      {%
+      endif
+      %}
+    >
+      <svg
+        width="7"
+        height="13"
+        viewBox="0 0 7 13"
+        xmlns="http://www.w3.org/2000/svg"
+        style="transform: rotate(180deg)"
+      >
+        <path
+          d="M0.16532 6.90499L6.10553 12.8455C6.20465 12.9447 6.33633 13 6.47326 13C6.6102 13 6.74188 12.9447 6.841 12.8455L6.84739 12.8388C6.89561 12.7907 6.934 12.7329 6.96024 12.6687C6.98647 12.6046 7 12.5355 7 12.4657C7 12.3959 6.98647 12.3268 6.96024 12.2627C6.934 12.1985 6.89561 12.1407 6.84739 12.0926L1.25359 6.49888L6.84739 0.907408C6.89561 0.859332 6.934 0.801463 6.96024 0.737323C6.98647 0.673182 7 0.604109 7 0.534307C7 0.464505 6.98647 0.395434 6.96024 0.331293C6.934 0.267152 6.89561 0.209283 6.84739 0.161207L6.841 0.154494C6.74188 0.0553237 6.6102 0 6.47326 0C6.33633 0 6.20465 0.0553237 6.10553 0.154494L0.16532 6.09502C0.113078 6.14726 0.0714882 6.21009 0.0430707 6.2797C0.0146533 6.34932 0 6.42427 0 6.5C0 6.57574 0.0146533 6.65068 0.0430707 6.7203C0.0714882 6.78991 0.113078 6.85274 0.16532 6.90499Z"
+          fill="white"
+        />
+      </svg>
+    </button>
+  </div>
 </main>
-
 
 {% comment %} фильтры {% endcomment %}
 <script>
+  (function () {
+    const qs = new URLSearchParams(location.search);
+    const setParam = (k, v) => {
+      if (!v) qs.delete(k);
+      else qs.set(k, v);
+    };
+    const apply = () => {
+      qs.delete("page");
+      location.search = qs.toString();
+    };
+    const debounce = (fn, ms = 700) => {
+      let t;
+      return (...a) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...a), ms);
+      };
+    };
+
+    // refs
+    const fDateFrom = document.getElementById("fDateFrom");
+    const fDateTo = document.getElementById("fDateTo");
+    const fAmtMin = document.getElementById("fAmtMin");
+    const fAmtMax = document.getElementById("fAmtMax");
+    const fOrder = document.getElementById("fOrder");
+    const fComment = document.getElementById("fComment");
+    const fTagName =
+      document.getElementById("fTagName") || document.getElementById("fTag"); // оба варианта
+    const btnReset = document.getElementById("filtersReset");
+
+    // аккордеоны
+    function toggleChip(chip, forceOpen = null) {
+      const need =
+        forceOpen === null ? !chip.classList.contains("open") : !!forceOpen;
+      chip.classList.toggle("open", need);
+      if (need) {
+        const inp = chip.querySelector(".chip__body input, .chip__body button");
+        if (inp) setTimeout(() => inp.focus(), 0);
+      }
+    }
+    function hydrateChipsByValues() {
+      document.querySelectorAll(".chip--toggle").forEach((chip) => {
+        const hasValue = [...chip.querySelectorAll(".chip__body input")].some(
+          (i) => i.type !== "hidden" && i.value && String(i.value).trim() !== ""
+        );
+        chip.classList.toggle("open", hasValue);
+      });
+    }
+    document.querySelectorAll(".chip--toggle").forEach((chip) => {
+      chip.addEventListener("click", (e) => {
+        if (e.target.closest(".chip__body")) return;
+        toggleChip(chip);
+      });
+      chip
+        .querySelectorAll("input,button")
+        .forEach((el) =>
+          el.addEventListener("click", (e) => e.stopPropagation())
+        );
+    });
+
+    // init из URL
+    if (qs.get("date_from")) fDateFrom.value = qs.get("date_from");
+    if (qs.get("date_to")) fDateTo.value = qs.get("date_to");
+    if (qs.get("amt_min")) fAmtMin.value = qs.get("amt_min");
+    if (qs.get("amt_max")) fAmtMax.value = qs.get("amt_max");
+    if (qs.get("order_id")) fOrder.value = qs.get("order_id");
+    if (qs.get("comment")) fComment.value = qs.get("comment");
+    if (qs.get("tag") && fTagName) fTagName.value = qs.get("tag");
+
+    hydrateChipsByValues();
+
+    // comment — живая (700 мс)
+    fComment.addEventListener(
+      "input",
+      debounce(() => {
+        setParam("comment", fComment.value.trim());
+        apply();
+      }, 700)
+    );
+
+    // остальные — по Enter
+    const onEnter = (fn) => (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        fn();
+      }
+    };
+
+    const applyDates = () => {
+      setParam("date_from", fDateFrom.value);
+      setParam("date_to", fDateTo.value);
+      apply();
+    };
+    const applyAmounts = () => {
+      setParam("amt_min", fAmtMin.value);
+      setParam("amt_max", fAmtMax.value);
+      apply();
+    };
+    const applyOrder = () => {
+      setParam("order_id", fOrder.value.trim());
+      apply();
+    };
+    const applyTag = () => {
+      if (!fTagName) return;
+      setParam("tag", fTagName.value.trim());
+      apply();
+    }; // строгий матч на бэке
+
+    fDateFrom.addEventListener("keydown", onEnter(applyDates));
+    fDateTo.addEventListener("keydown", onEnter(applyDates));
+    fAmtMin.addEventListener("keydown", onEnter(applyAmounts));
+    fAmtMax.addEventListener("keydown", onEnter(applyAmounts));
+    fOrder.addEventListener("keydown", onEnter(applyOrder));
+    if (fTagName) fTagName.addEventListener("keydown", onEnter(applyTag));
+
+    // Reset
+    btnReset.addEventListener("click", () => {
+      [
+        "date_from",
+        "date_to",
+        "amt_min",
+        "amt_max",
+        "tag",
+        "order_id",
+        "comment",
+        "page",
+      ].forEach((k) => qs.delete(k));
+      apply();
+    });
+
+    // Пагинация prev/next (если используешь те же кнопки)
     (function () {
-        const qs = new URLSearchParams(location.search);
-        const setParam = (k, v) => { if (!v) qs.delete(k); else qs.set(k, v); };
-        const apply = () => { qs.delete('page'); location.search = qs.toString(); };
-        const debounce = (fn, ms = 700) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
-
-        // refs
-        const fDateFrom = document.getElementById('fDateFrom');
-        const fDateTo = document.getElementById('fDateTo');
-        const fAmtMin = document.getElementById('fAmtMin');
-        const fAmtMax = document.getElementById('fAmtMax');
-        const fOrder = document.getElementById('fOrder');
-        const fComment = document.getElementById('fComment');
-        const fTagName = document.getElementById('fTagName') || document.getElementById('fTag'); // оба варианта
-        const btnReset = document.getElementById('filtersReset');
-
-        // аккордеоны
-        function toggleChip(chip, forceOpen = null) {
-            const need = (forceOpen === null) ? !chip.classList.contains('open') : !!forceOpen;
-            chip.classList.toggle('open', need);
-            if (need) {
-                const inp = chip.querySelector('.chip__body input, .chip__body button');
-                if (inp) setTimeout(() => inp.focus(), 0);
-            }
-        }
-        function hydrateChipsByValues() {
-            document.querySelectorAll('.chip--toggle').forEach(chip => {
-                const hasValue = [...chip.querySelectorAll('.chip__body input')]
-                    .some(i => i.type !== 'hidden' && i.value && String(i.value).trim() !== '');
-                chip.classList.toggle('open', hasValue);
-            });
-        }
-        document.querySelectorAll('.chip--toggle').forEach(chip => {
-            chip.addEventListener('click', (e) => {
-                if (e.target.closest('.chip__body')) return;
-                toggleChip(chip);
-            });
-            chip.querySelectorAll('input,button').forEach(el => el.addEventListener('click', e => e.stopPropagation()));
+      const wrap = document.querySelector(".pagination");
+      if (!wrap) return;
+      const go = (url) => url && (window.location.href = url);
+      const prev = wrap.querySelector(".prev");
+      const next = wrap.querySelector(".next");
+      if (prev)
+        prev.addEventListener("click", () => {
+          if (!prev.hasAttribute("disabled")) go(wrap.dataset.prev);
         });
-
-        // init из URL
-        if (qs.get('date_from')) fDateFrom.value = qs.get('date_from');
-        if (qs.get('date_to')) fDateTo.value = qs.get('date_to');
-        if (qs.get('amt_min')) fAmtMin.value = qs.get('amt_min');
-        if (qs.get('amt_max')) fAmtMax.value = qs.get('amt_max');
-        if (qs.get('order_id')) fOrder.value = qs.get('order_id');
-        if (qs.get('comment')) fComment.value = qs.get('comment');
-        if (qs.get('tag') && fTagName) fTagName.value = qs.get('tag');
-
-        hydrateChipsByValues();
-
-        // comment — живая (700 мс)
-        fComment.addEventListener('input', debounce(() => {
-            setParam('comment', fComment.value.trim());
-            apply();
-        }, 700));
-
-        // остальные — по Enter
-        const onEnter = (fn) => (e) => { if (e.key === 'Enter') { e.preventDefault(); fn(); } };
-
-        const applyDates = () => { setParam('date_from', fDateFrom.value); setParam('date_to', fDateTo.value); apply(); };
-        const applyAmounts = () => { setParam('amt_min', fAmtMin.value); setParam('amt_max', fAmtMax.value); apply(); };
-        const applyOrder = () => { setParam('order_id', fOrder.value.trim()); apply(); };
-        const applyTag = () => { if (!fTagName) return; setParam('tag', fTagName.value.trim()); apply(); }; // строгий матч на бэке
-
-        fDateFrom.addEventListener('keydown', onEnter(applyDates));
-        fDateTo.addEventListener('keydown', onEnter(applyDates));
-        fAmtMin.addEventListener('keydown', onEnter(applyAmounts));
-        fAmtMax.addEventListener('keydown', onEnter(applyAmounts));
-        fOrder.addEventListener('keydown', onEnter(applyOrder));
-        if (fTagName) fTagName.addEventListener('keydown', onEnter(applyTag));
-
-        // Reset
-        btnReset.addEventListener('click', () => {
-            ['date_from', 'date_to', 'amt_min', 'amt_max', 'tag', 'order_id', 'comment', 'page'].forEach(k => qs.delete(k));
-            apply();
+      if (next)
+        next.addEventListener("click", () => {
+          if (!next.hasAttribute("disabled")) go(wrap.dataset.next);
         });
-
-        // Пагинация prev/next (если используешь те же кнопки)
-        (function () {
-            const wrap = document.querySelector('.pagination');
-            if (!wrap) return;
-            const go = (url) => url && (window.location.href = url);
-            const prev = wrap.querySelector('.prev');
-            const next = wrap.querySelector('.next');
-            if (prev) prev.addEventListener('click', () => { if (!prev.hasAttribute('disabled')) go(wrap.dataset.prev); });
-            if (next) next.addEventListener('click', () => { if (!next.hasAttribute('disabled')) go(wrap.dataset.next); });
-        })();
     })();
+  })();
 </script>
 
 <script>
-    (function () {
-      function initSection(sec) {
-        const icon = sec.querySelector('[data-reset], #filtersReset, .f-icon');
-        if (!icon) return;
+  (function () {
+    function initSection(sec) {
+      const icon = sec.querySelector("[data-reset], #filtersReset, .f-icon");
+      if (!icon) return;
 
-        const inputs = [...sec.querySelectorAll('.ps-filters-container input')];
+      const inputs = [...sec.querySelectorAll(".ps-filters-container input")];
 
-        const hasAny = () =>
-          inputs.some(i =>
-            (i.type === 'checkbox' || i.type === 'radio') ? i.checked
-              : (i.value && String(i.value).trim() !== '')
-          );
+      const hasAny = () =>
+        inputs.some((i) =>
+          i.type === "checkbox" || i.type === "radio"
+            ? i.checked
+            : i.value && String(i.value).trim() !== ""
+        );
 
-        const updateIcon = () => {
-          icon.classList.toggle('has-filters', hasAny());
-        };
-        inputs.forEach(i => {
-          i.addEventListener('input', updateIcon);
-          i.addEventListener('change', updateIcon);
-        });
-        icon.addEventListener('click', () => {
-          if (!icon.classList.contains('has-filters')) return;
-          setTimeout(() => {
-            if (hasAny()) {
-              inputs.forEach(i => {
-                if (i.type === 'checkbox' || i.type === 'radio') i.checked = false;
-                else i.value = '';
-              });
-              sec.dispatchEvent(new CustomEvent('filters:reset', { bubbles: true, detail: { section: sec } }));
-            }
-            updateIcon();
-          }, 0);
-        });
-        updateIcon();
-      }
-
-      document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.ps-filters').forEach(initSection);
+      const updateIcon = () => {
+        icon.classList.toggle("has-filters", hasAny());
+      };
+      inputs.forEach((i) => {
+        i.addEventListener("input", updateIcon);
+        i.addEventListener("change", updateIcon);
       });
-    })();
+      icon.addEventListener("click", () => {
+        if (!icon.classList.contains("has-filters")) return;
+        setTimeout(() => {
+          if (hasAny()) {
+            inputs.forEach((i) => {
+              if (i.type === "checkbox" || i.type === "radio")
+                i.checked = false;
+              else i.value = "";
+            });
+            sec.dispatchEvent(
+              new CustomEvent("filters:reset", {
+                bubbles: true,
+                detail: { section: sec },
+              })
+            );
+          }
+          updateIcon();
+        }, 0);
+      });
+      updateIcon();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll(".ps-filters").forEach(initSection);
+    });
+  })();
 </script>
 
 
+
+
+
+  <script>
+    (() => {
+      const $ = (sel, root = document) => root.querySelector(sel);
+      const $$ = (sel, root = document) =>
+        Array.from(root.querySelectorAll(sel));
+      const fmt = new Intl.NumberFormat("ru-RU");
+
+      document.addEventListener("click", (e) => {
+        const btn = e.target.closest(".btn-debt");
+        if (!btn) return;
+        e.preventDefault();
+        openDebtModal();
+      });
+
+      const backdrop = $("#m-debt");
+      const modal = $(".debt-modal", backdrop);
+      const btnClose = $(".debt-modal-close", backdrop);
+      const form = $("#debtForm");
+
+      const sellerBox = $("#sellerSelect");
+      const sellerInput = $("#sellerInput");
+      const sellerList = $("#sellerOptions");
+      const caret = $(".debt-caret", sellerBox);
+
+      const debtInfo = $("#debtInfo");
+      const debtVal = $("#debtVal");
+
+      const amountInput = $("#amountInput");
+      const amountErr = $("#amountErr");
+      const submitBtn = $("#submitDebt");
+
+      const PLACEHOLDER = "Выберите продавца или начните вводить имя…";
+      const DEFAULT_HINT = "Имя";
+
+      let sellers = [];
+      let picked = null;
+
+      async function fetchSellers() {
+        return [
+          { id: "u1", name: "Игорь", debt: 12500 },
+          { id: "u2", name: "Вова", debt: 3200 },
+          { id: "u3", name: "Марина", debt: 0 },
+          { id: "u4", name: "Егор", debt: 84560 },
+          { id: "u1", name: "Саша", debt: 12500 },
+          { id: "u2", name: "Петя", debt: 3200 },
+          { id: "u3", name: "Даша", debt: 500 },
+          { id: "u4", name: "Леша", debt: 84560 },
+        ];
+      }
+
+      async function openDebtModal() {
+        if (!sellers.length) sellers = await fetchSellers();
+
+        form.reset();
+        picked = null;
+        debtInfo.hidden = true;
+        amountErr.hidden = true;
+        amountInput.removeAttribute("max");
+        submitBtn.disabled = true;
+
+        renderOptions(sellers);
+        closeDropdown();
+
+        sellerInput.value = "";
+        sellerInput.placeholder = DEFAULT_HINT; // показываем "Имя" изначально
+        sellerInput.setAttribute("aria-expanded", "false");
+
+        backdrop.classList.add("open");
+        document.body.classList.add("debt-scroll-lock");
+
+        trapFocus(true);
+      }
+
+      function closeDebtModal() {
+        backdrop.classList.remove("open");
+        document.body.classList.remove("debt-scroll-lock");
+        trapFocus(false);
+      }
+
+      btnClose.addEventListener("click", closeDebtModal);
+      backdrop.addEventListener("click", (e) => {
+        if (e.target === backdrop) closeDebtModal();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && backdrop.classList.contains("open"))
+          closeDebtModal();
+      });
+
+      // ===== фокус-трап
+      let focusables = [];
+      function trapFocus(enable) {
+        if (!enable) {
+          document.removeEventListener("keydown", handleTrap);
+          return;
+        }
+        focusables = $$(
+          'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])',
+          modal
+        ).filter(
+          (el) =>
+            !el.hasAttribute("disabled") && !el.getAttribute("aria-hidden")
+        );
+        document.addEventListener("keydown", handleTrap);
+      }
+      function handleTrap(e) {
+        if (e.key !== "Tab") return;
+        const first = focusables[0],
+          last = focusables.at(-1);
+        if (e.shiftKey && document.activeElement === first) {
+          last.focus();
+          e.preventDefault();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          first.focus();
+          e.preventDefault();
+        }
+      }
+
+      // ===== рендер и фильтр
+      function renderOptions(list) {
+        sellerList.innerHTML = "";
+        if (!list.length) {
+          const empty = document.createElement("div");
+          empty.className = "debt-option";
+          empty.style.opacity = ".6";
+          empty.style.pointerEvents = "none";
+          empty.textContent = "Ничего не найдено";
+          sellerList.appendChild(empty);
+          return;
+        }
+        list.forEach((s) => {
+          const d = document.createElement("div");
+          d.className = "debt-option";
+          d.textContent = s.name;
+          d.addEventListener("click", () => pickSeller(s));
+          sellerList.appendChild(d);
+        });
+      }
+
+      function filterOptions(query) {
+        const v = query.trim().toLowerCase();
+        const filtered = v
+          ? sellers.filter((s) => s.name.toLowerCase().includes(v))
+          : sellers;
+        renderOptions(filtered);
+        if (v) {
+          openDropdown();
+        } else {
+          closeDropdown();
+        }
+      }
+
+      function pickSeller(s) {
+        picked = s;
+        sellerInput.value = s.name;
+        closeDropdown();
+        debtVal.textContent = fmt.format(s.debt);
+        debtInfo.hidden = false;
+        amountInput.value = "";
+        amountInput.max = String(s.debt);
+        validateAmount();
+      }
+
+      function openDropdown() {
+        sellerBox.dataset.open = "true";
+        sellerInput.setAttribute("aria-expanded", "true");
+      }
+      function closeDropdown() {
+        sellerBox.dataset.open = "false";
+        sellerInput.setAttribute("aria-expanded", "false");
+      }
+
+      // ===== стрелочка-тогглер
+      if (caret) {
+        caret.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const isOpen = sellerBox.dataset.open === "true";
+          if (isOpen) closeDropdown();
+          else openDropdown();
+          if (!isOpen && !sellerInput.placeholder)
+            sellerInput.placeholder = PLACEHOLDER;
+        });
+      }
+
+      // ===== логика подсказок
+      sellerInput.addEventListener("focus", () => {
+        // при фокусе ставим текст «Выберите продавца...»
+        sellerInput.placeholder = PLACEHOLDER;
+      });
+      sellerInput.addEventListener("blur", () => {
+        // если пусто, возвращаем "Имя"
+        if (!sellerInput.value.trim()) sellerInput.placeholder = DEFAULT_HINT;
+      });
+
+      sellerInput.addEventListener("input", (e) =>
+        filterOptions(e.target.value)
+      );
+
+      // ===== валидация суммы
+      amountInput.addEventListener("input", validateAmount);
+      function validateAmount() {
+        if (!picked) {
+          submitBtn.disabled = true;
+          amountErr.hidden = true;
+          return;
+        }
+        const a = Number(amountInput.value || 0);
+        const max = Number(picked.debt || 0);
+        const ok = a >= 0 && a <= max;
+        amountErr.hidden = ok;
+        submitBtn.disabled = !ok;
+      }
+
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!picked) {
+          openDropdown();
+          sellerInput.focus();
+          return;
+        }
+        validateAmount();
+        if (submitBtn.disabled) return;
+        const payload = {
+          seller_id: picked.id,
+          seller_name: picked.name,
+          amount: Number(amountInput.value),
+        };
+        console.log("SEND", payload);
+        closeDebtModal();
+      });
+    })();
+  </script>
 
 {% endblock content %}
