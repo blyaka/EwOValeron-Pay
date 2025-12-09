@@ -10,9 +10,8 @@ urlpatterns = [
 
 
 
-from payments.views_plnk_test import create_plnk_test_link, create_plnk_start_test
+from payments.views_plnk_test import create_plnk_test_link
 
 urlpatterns += [
     path("plnk/test/", create_plnk_test_link, name="plnk_test_link"),
-    path("plnk/start-test/", create_plnk_start_test, name="plnk_start_test"),
 ]
