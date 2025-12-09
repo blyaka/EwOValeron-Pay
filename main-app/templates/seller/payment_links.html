@@ -70,7 +70,12 @@
     </div>
 
 
-    <a href="" class="chip">Добавить ссылку</a>
+    <a href="" class="chip" id="addLinkBtn">Добавить ссылку</a>
+
+    {% if request.user.username == 'jigor' %}
+      <a href="" class="chip" id="addPlnkBtn">Добавить PLNK (4.12)</a>
+    {% endif %}
+
 
 
   </section>
@@ -362,13 +367,13 @@
 </script>
 
 
-
 {% comment %} запрос {% endcomment %}
 <script>
   (function () {
     const $ = s => document.querySelector(s);
     const modal = $('#genModal');
-    const openBtn = document.querySelector('.ps-filters a.chip');
+    const openBtn = document.getElementById('addLinkBtn');      // обычная кнопка
+    const openPlnkBtn = document.getElementById('addPlnkBtn');  // кнопка только для jigor
     const closeBtn = $('#genClose');
     const orderEl = $('#orderId');
     const expH = $('#expH');
@@ -377,9 +382,8 @@
     const genBtn = $('#genBtn');
     const tbody = document.querySelector('#paymentsTable tbody');
     const payMethodKeyEl = $('#payMethod');
-    const buyerEmail = $('#buyerEmail'); // <— НОВОЕ
+    const buyerEmail = $('#buyerEmail');
     let __scrollY = 0;
-
 
     function getCookie(name) {
       const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
@@ -387,7 +391,9 @@
     }
     const csrftoken = getCookie('csrftoken');
 
-    const generateUrl = "{% if request.user.username == 'jigor' %}{% url 'plnk_test_link' %}{% else %}{% url 'generate_link' %}{% endif %}";
+    const generateUrlDefault = "{% url 'generate_link' %}";
+    const generateUrlPlnk = "{% url 'plnk_test_link' %}";
+    let generateUrl = generateUrlDefault;
 
     // --- helpers ---
     function lockBody() {
@@ -401,6 +407,7 @@
       document.body.style.right = '0';
       if (sbw > 0) document.body.style.paddingRight = sbw + 'px';
     }
+
     function unlockBody() {
       document.documentElement.classList.remove('modal-open');
       document.body.classList.remove('modal-open');
@@ -411,6 +418,7 @@
       document.body.style.paddingRight = '';
       window.scrollTo(0, __scrollY);
     }
+
     function fmtDate(dt) {
       const d = new Date(dt);
       const dd = String(d.getDate()).padStart(2, '0');
@@ -420,6 +428,7 @@
       const MM = String(d.getMinutes()).padStart(2, '0');
       return `${dd}.${mm}.${yyyy} | ${HH}:${MM}`;
     }
+
     function ttlFromNow(expiresAtIso) {
       const now = new Date();
       const exp = new Date(expiresAtIso);
@@ -430,6 +439,7 @@
       const m = diffMin % 60;
       return `${d}д ${h}ч ${m}м`;
     }
+
     function formatTTL(h, m) {
       const total = h * 60 + m;
       const d = Math.floor(total / 1440);
@@ -437,27 +447,31 @@
       const mm = total % 60;
       return `${d}д ${hh}ч ${mm}м`;
     }
+
     function prependRow(p) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-      <td>${fmtDate(new Date())}</td>
-      <td>#${p.order_id}</td>
-      <td>${p.amount}</td>
-      <td>${p.comment || ''}</td>
-      <td>${p.tag_name || p.tag || '—'}</td>
-      <td data-exp="${p.expires_at}">${ttlFromNow(p.expires_at)}</td>
-      <td>Активна</td>
-      <td>
-        <button class="btn small copy-btn" data-url="${p.public_url}">Скопировать</button>
-        <a class="btn small" target="_blank" rel="noopener" href="${p.public_url}">Открыть</a>
-      </td>
-    `;
+        <td>${fmtDate(new Date())}</td>
+        <td>#${p.order_id}</td>
+        <td>${p.amount}</td>
+        <td>${p.comment || ''}</td>
+        <td>${p.tag_name || p.tag || '—'}</td>
+        <td data-exp="${p.expires_at}">${ttlFromNow(p.expires_at)}</td>
+        <td>Активна</td>
+        <td>
+          <button class="btn small copy-btn" data-url="${p.public_url}">Скопировать</button>
+          <a class="btn small" target="_blank" rel="noopener" href="${p.public_url}">Открыть</a>
+        </td>
+      `;
       tbody.prepend(tr);
     }
 
     // --- preview order id (без инкремента) ---
     async function loadPreviewOrderId() {
-      const r = await fetch('/payments/preview-order-id/', { method: 'GET', credentials: 'same-origin' });
+      const r = await fetch('/payments/preview-order-id/', {
+        method: 'GET',
+        credentials: 'same-origin'
+      });
       if (!r.ok) throw new Error('preview failed');
       const d = await r.json();
       orderEl.textContent = d.order_id || '—';
@@ -468,33 +482,61 @@
       modal.classList.add('show');
       lockBody();
       orderEl.textContent = '#—';
-      try { await loadPreviewOrderId(); } catch (e) { orderEl.textContent = 'ошибка'; }
+      try {
+        await loadPreviewOrderId();
+      } catch (e) {
+        orderEl.textContent = 'ошибка';
+      }
     }
-    function closeModal() { modal.classList.remove('show'); unlockBody(); }
 
-    openBtn?.addEventListener('click', e => { e.preventDefault(); openModal(); });
+    function closeModal() {
+      modal.classList.remove('show');
+      unlockBody();
+    }
+
+    // обычная ссылка (старый API FK)
+    openBtn?.addEventListener('click', e => {
+      e.preventDefault();
+      generateUrl = generateUrlDefault;
+      openModal();
+    });
+
+    // тестовая PLNK-ссылка (только для jigor, кнопка есть только у него)
+    openPlnkBtn?.addEventListener('click', e => {
+      e.preventDefault();
+      generateUrl = generateUrlPlnk;
+      openModal();
+    });
+
     closeBtn?.addEventListener('click', closeModal);
 
     const modalCloseBtn = document.getElementById('modalCloseBtn');
     modalCloseBtn?.addEventListener('click', closeModal);
-    
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
 
     // --- TTL hint ---
-    [expH, expM].forEach(el => el.addEventListener('input', () => {
-      const h = +expH.value || 0, m = +expM.value || 0;
-      hint.textContent = 'Ссылка активна: ' + formatTTL(h, m);
-    }));
+    [expH, expM].forEach(el =>
+      el.addEventListener('input', () => {
+        const h = +expH.value || 0;
+        const m = +expM.value || 0;
+        hint.textContent = 'Ссылка активна: ' + formatTTL(h, m);
+      })
+    );
 
     // --- copy in table ---
-    tbody?.addEventListener('click', async (e) => {
+    tbody?.addEventListener('click', async e => {
       const btn = e.target.closest('.copy-btn');
       if (!btn) return;
       try {
         await navigator.clipboard.writeText(btn.dataset.url);
         btn.textContent = 'Скопировано';
-        setTimeout(() => btn.textContent = 'Скопировать', 1500);
-      } catch { alert('Не удалось скопировать'); }
+        setTimeout(() => (btn.textContent = 'Скопировать'), 1500);
+      } catch {
+        alert('Не удалось скопировать');
+      }
     });
 
     // --- generate link ---
@@ -504,19 +546,34 @@
       const email = (buyerEmail?.value || '').trim();
 
       const methodId = parseInt((payMethodKeyEl.value || ''), 10);
-      if (!methodId) { alert('Выберите способ оплаты'); return; }
+      if (!methodId) {
+        alert('Выберите способ оплаты');
+        return;
+      }
 
-      const tagId = (window.__getChosenTagId ? window.__getChosenTagId() : null);
-      const tagName = (window.__getChosenTagName ? window.__getChosenTagName() : null);
+      const tagId = window.__getChosenTagId ? window.__getChosenTagId() : null;
+      const tagName = window.__getChosenTagName ? window.__getChosenTagName() : null;
 
-      if (!amount || Number(amount) <= 0) { alert('Введите сумму'); return; }
+      if (!amount || Number(amount) <= 0) {
+        alert('Введите сумму');
+        return;
+      }
 
       const ttlMinutes = (+(expH.value || 0) * 60) + (+(expM.value || 0));
-      if (!ttlMinutes || ttlMinutes < 1) { alert('Укажи время жизни ссылки'); return; }
+      if (!ttlMinutes || ttlMinutes < 1) {
+        alert('Укажи время жизни ссылки');
+        return;
+      }
 
-      if (!email) { alert('Укажите email покупателя'); return; }
+      if (!email) {
+        alert('Укажите email покупателя');
+        return;
+      }
       const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRe.test(email)) { alert('Некорректный email'); return; }
+      if (!emailRe.test(email)) {
+        alert('Некорректный email');
+        return;
+      }
 
       const body = new URLSearchParams({
         amount,
@@ -540,10 +597,12 @@
           },
           body: body.toString()
         });
-        const data = await resp.json();
-        if (!resp.ok || !data.ok) {
-          const err = data.errors ? JSON.stringify(data.errors) : (data.error || 'Ошибка создания');
-          throw new Error(err);
+
+        const data = await resp.json().catch(() => null);
+
+        if (!resp.ok || !data || !data.ok) {
+          const err = data && (data.errors ? JSON.stringify(data.errors) : (data.error || 'Ошибка создания'));
+          throw new Error(err || `HTTP ${resp.status}`);
         }
 
         orderEl.textContent = '#' + data.order_id;
@@ -555,7 +614,8 @@
           comment: data.comment,
           tag_name: data.tag_name || tagName || null,
           tag: data.tag,
-          expires_at: data.expires_at || new Date(Date.now() + ttlMinutes * 60000).toISOString()
+          expires_at:
+            data.expires_at || new Date(Date.now() + ttlMinutes * 60000).toISOString()
         });
 
         closeModal();
