@@ -4,7 +4,7 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{% static 'css/pages/base_lk.css'%}">
-<link rel="stylesheet" href="{% static 'css/pages/payment-status.css'%}">
+<link rel="stylesheet" href="{% static 'css/pages/chargers_history.css'%}">
 {% endblock styles %}
 
 {% block content %}
@@ -116,7 +116,7 @@
             <th>Комментарий</th>
             <th>Сумма платежа<br><small>(₽)</small></th>
             <th>Комиссия<br><small>(₽)</small></th>
-            <th>К выплате<br><small>(₽)</small></th>
+            <th>Уменьшили сумму <br> долга на <br><small>(₽)</small></th>
             <th>Метод</th>
             <th>Статус</th>
             <th>intid</th>
@@ -328,42 +328,7 @@
   </script>
 
 
-<script>
-    (() => {
-      const chips = document.querySelectorAll('.ps-filters .chip');
-      const btnReset = document.getElementById('filtersReset');
-
-      function hasAnyValue(chip) {
-        return [...chip.querySelectorAll('input')]
-          .some(i => i.value && i.value.trim() !== '');
-      }
-
-      function updateChipState() {
-        chips.forEach(chip => chip.classList.toggle('active', hasAnyValue(chip)));
-      }
-
-      // следим за изменением значений
-      chips.forEach(chip => {
-        chip.querySelectorAll('input').forEach(inp => {
-          inp.addEventListener('input', () => updateChipState());
-        });
-
-        // при клике на активный фильтр — сбрасываем
-        chip.addEventListener('click', e => {
-          if (chip.classList.contains('active') && !e.target.closest('.chip__body')) {
-            chip.querySelectorAll('input').forEach(inp => inp.value = '');
-            chip.classList.remove('active');
-            // триггерим общий reset
-            btnReset.click();
-          }
-        });
-      });
-
-      updateChipState();
-    })();
-    </script>
-
-    <script>
+  <script>
     (function () {
       function initSection(sec) {
         const icon = sec.querySelector('[data-reset], #filtersReset, .f-icon');
@@ -404,10 +369,7 @@
         document.querySelectorAll('.ps-filters').forEach(initSection);
       });
     })();
-</script>
-
-
-
+  </script>
 
 
 </main>

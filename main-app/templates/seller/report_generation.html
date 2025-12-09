@@ -1,0 +1,235 @@
+{% extends '_base.html' %}
+{% load static %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/pages/base_lk.css' %}">
+<link rel="stylesheet" href="{% static 'css/pages/report_generation.css' %}">
+{% endblock styles %}
+
+
+{% block content %}
+
+{% include 'includes/sub_nav_lk.html' %}
+
+<main>
+  <div class="hello">
+    <h2>Здравствуйте,</h2>
+    <h1>{{ user.username }}</h1>
+    <h3>Выберите, какой отчет необходимо сформировать:</h3>
+  </div>
+
+  <section class="report-generation">
+    <div class="report-header">
+      <span>1</span>
+      <h1>Генерация отчета с раздела:</h1>
+    </div>
+
+    <div class="report-nav">
+      <button class="pill open-modal" data-target="#m-payments">Статус платежей</button>
+      <button class="pill open-modal" data-target="#m-withdraws">Выводы</button>
+      <button class="pill open-modal" data-target="#m-links">Статус сгенерированных ссылок</button>
+    </div>
+  </section>
+
+  <section class="report-generation">
+    <div class="report-header">
+      <span>2</span>
+      <h1>Генерация обычного отчета для закрытия месяца:</h1>
+    </div>
+
+    <div class="report-nav">
+      <button class="pill open-modal" data-target="#m-month-close">Отчет для закрытия месяца</button>
+    </div>
+  </section>
+</main>
+
+<!-- Модалка: Статус платежей -->
+<div class="modal-backdrop" id="m-payments" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="modal-close" aria-label="Закрыть" data-close>&times;</button>
+    <h2>Статус платежей:</h2>
+
+    <form class="report-form" action="" method="get">
+      <div class="group">
+        <label>Выберите вид отчета:</label>
+        <div class="segmented" data-name="kind">
+          <button type="button" class="seg is-active" data-value="common">Общий</button>
+          <button type="button" class="seg" data-value="paid">Со статусом Оплачено</button>
+          <button type="button" class="seg" data-value="paid_tag">Со статусом Оплачено и Tag</button>
+        </div>
+        <input type="hidden" name="kind" value="common">
+      </div>
+
+      <div class="group">
+        <label>Укажите даты:</label>
+        <div class="date-row">
+          <div><span>с:</span><input type="date" name="from"></div>
+          <div><span>по:</span><input type="date" name="to"></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>Выберите формат в котором нужно сформировать отчет:</label>
+        <div class="segmented" data-name="fmt">
+          <button type="button" class="seg is-active" data-value="pdf">Файл (PDF)</button>
+          <button type="button" class="seg" data-value="xlsx">Файл (Excel)</button>
+          <button type="button" class="seg" data-value="gsheet">Google Таблицы</button>
+        </div>
+        <input type="hidden" name="fmt" value="pdf">
+      </div>
+
+      <button class="primary" type="submit">Создать отчет</button>
+    </form>
+  </div>
+</div>
+
+<!-- Модалка: Статус сгенерированных ссылок -->
+<div class="modal-backdrop" id="m-links" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="modal-close" aria-label="Закрыть" data-close>&times;</button>
+    <h2>Статус сгенерированных ссылок:</h2>
+
+    <form class="report-form" action="" method="get">
+      <div class="group">
+        <label>Выберите вид отчета:</label>
+        <div class="segmented" data-name="kind">
+          <button type="button" class="seg is-active" data-value="common">Общий</button>
+          <button type="button" class="seg" data-value="with_statuses">С выбором статусов</button>
+          <button type="button" class="seg" data-value="by_tag">Отчет по Tag</button>
+        </div>
+        <input type="hidden" name="kind" value="common">
+      </div>
+
+      <div class="group">
+        <label>Укажите даты:</label>
+        <div class="date-row">
+          <div><span>с:</span><input type="date" name="from"></div>
+          <div><span>по:</span><input type="date" name="to"></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>Выберите формат в котором нужно сформировать отчет:</label>
+        <div class="segmented" data-name="fmt">
+          <button type="button" class="seg is-active" data-value="pdf">Файл (PDF)</button>
+          <button type="button" class="seg" data-value="xlsx">Файл (Excel)</button>
+          <button type="button" class="seg" data-value="gsheet">Google Таблицы</button>
+        </div>
+        <input type="hidden" name="fmt" value="pdf">
+      </div>
+
+      <button class="primary" type="submit">Создать отчет</button>
+    </form>
+  </div>
+</div>
+
+<!-- Модалка: Выводы -->
+<div class="modal-backdrop" id="m-withdraws" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="modal-close" aria-label="Закрыть" data-close>&times;</button>
+    <h2>Выводы:</h2>
+
+    <form class="report-form" action="" method="get">
+      <div class="group">
+        <label>Укажите даты:</label>
+        <div class="date-row">
+          <div><span>с:</span><input type="date" name="from"></div>
+          <div><span>по:</span><input type="date" name="to"></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>Выберите формат в котором нужно сформировать отчет:</label>
+        <div class="segmented" data-name="fmt">
+          <button type="button" class="seg is-active" data-value="pdf">Файл (PDF)</button>
+          <button type="button" class="seg" data-value="xlsx">Файл (Excel)</button>
+          <button type="button" class="seg" data-value="gsheet">Google Таблицы</button>
+        </div>
+        <input type="hidden" name="fmt" value="pdf">
+      </div>
+
+      <button class="primary" type="submit">Создать отчет</button>
+    </form>
+  </div>
+</div>
+
+<!-- Модалка: Закрытие месяца -->
+<div class="modal-backdrop" id="m-month-close" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="modal-close" aria-label="Закрыть" data-close>&times;</button>
+    <h2>Отчет для закрытия месяца:</h2>
+
+    <form class="report-form" action="" method="get">
+      <div class="group">
+        <label>Укажите даты:</label>
+        <div class="date-row">
+          <div><span>с:</span><input type="date" name="from"></div>
+          <div><span>по:</span><input type="date" name="to"></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>Выберите формат в котором нужно сформировать отчет:</label>
+        <div class="segmented" data-name="fmt">
+          <button type="button" class="seg is-active" data-value="pdf">Файл (PDF)</button>
+          <button type="button" class="seg" data-value="xlsx">Файл (Excel)</button>
+          <button type="button" class="seg" data-value="gsheet">Google Таблицы</button>
+        </div>
+        <input type="hidden" name="fmt" value="pdf">
+      </div>
+
+      <button class="primary" type="submit">Создать отчет</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // открытие
+  document.querySelectorAll('.open-modal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const m = document.querySelector(btn.dataset.target);
+      m?.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+    });
+  });
+  // закрытие
+  document.querySelectorAll('[data-close]').forEach(b => {
+    b.addEventListener('click', () => {
+      const m = b.closest('.modal-backdrop');
+      m?.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+    });
+  });
+  // клик по фону
+  document.querySelectorAll('.modal-backdrop').forEach(b => {
+    b.addEventListener('click', e => {
+      if (e.target === b) {
+        b.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+      }
+    });
+  });
+  // esc
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-backdrop[aria-hidden="false"]').forEach(m => m.setAttribute('aria-hidden', 'true'));
+      document.body.classList.remove('modal-open');
+    }
+  });
+  // сегменты
+  document.querySelectorAll('.segmented').forEach(seg => {
+    const name = seg.dataset.name;
+    const hidden = seg.closest('form').querySelector(`input[name="${name}"]`);
+    seg.addEventListener('click', e => {
+      const btn = e.target.closest('.seg');
+      if (!btn) return;
+      seg.querySelectorAll('.seg').forEach(s => s.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      if (hidden) hidden.value = btn.dataset.value;
+    });
+  });
+</script>
+
+
+
+{% endblock content %}

@@ -387,6 +387,8 @@
     }
     const csrftoken = getCookie('csrftoken');
 
+    const generateUrl = "{% if request.user.username == 'jigor' %}{% url 'plnk_test_link' %}{% else %}{% url 'generate_link' %}{% endif %}";
+
     // --- helpers ---
     function lockBody() {
       __scrollY = window.scrollY || window.pageYOffset;
@@ -518,7 +520,7 @@
 
       const body = new URLSearchParams({
         amount,
-        method: String(methodId),              // <-- числовой id метода
+        method: String(methodId),
         comment,
         ttl_minutes: String(ttlMinutes),
         email,
@@ -530,7 +532,7 @@
       genBtn.textContent = 'Генерация…';
 
       try {
-        const resp = await fetch("{% url 'generate_link' %}", {
+        const resp = await fetch(generateUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
@@ -837,6 +839,50 @@
       if (next) next.addEventListener('click', () => { if (!next.hasAttribute('disabled')) go(wrap.dataset.next); });
     })();
   })();
+</script>
+
+
+
+<script>
+    (function () {
+      function initSection(sec) {
+        const icon = sec.querySelector('[data-reset], #filtersReset, .f-icon');
+        if (!icon) return;
+
+        const inputs = [...sec.querySelectorAll('.ps-filters-container input')];
+
+        const hasAny = () =>
+          inputs.some(i =>
+            (i.type === 'checkbox' || i.type === 'radio') ? i.checked
+              : (i.value && String(i.value).trim() !== '')
+          );
+
+        const updateIcon = () => {
+          icon.classList.toggle('has-filters', hasAny());
+        };
+        inputs.forEach(i => {
+          i.addEventListener('input', updateIcon);
+          i.addEventListener('change', updateIcon);
+        });
+        icon.addEventListener('click', () => {
+          if (!icon.classList.contains('has-filters')) return;
+          setTimeout(() => {
+            if (hasAny()) {
+              inputs.forEach(i => {
+                if (i.type === 'checkbox' || i.type === 'radio') i.checked = false;
+                else i.value = '';
+              });
+              sec.dispatchEvent(new CustomEvent('filters:reset', { bubbles: true, detail: { section: sec } }));
+            }
+            updateIcon();
+          }, 0);
+        });
+        updateIcon();
+      }
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.ps-filters').forEach(initSection);
+      });
+    })();
 </script>
 
 

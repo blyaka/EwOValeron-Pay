@@ -27,6 +27,12 @@ spec:
         - { name: PAY_LINK_TTL_HOURS, value: "24" }
         - { name: LOG_BODY, value: "1" }
         - { name: LOG_BODY_MAX, value: "16384" }
+        - { name: PLNK_ACCOUNT,      value: "ACC1023388" }
+        - { name: PLNK_SECRET1,      value: "c72a3aac-e201-0ade-cbc0-b7a6eaf0c9b2" }
+        - { name: PLNK_SECRET2,      value: "iWJBWKreyKmHHhkRcct@" }
+        - { name: PLNK_PAYSYS,       value: "EXT" }
+        - { name: PLNK_AMOUNTCURR,   value: "RUB" }
+        - { name: PLNK_HASH_ALG,     value: "md5" } 
         readinessProbe:
           httpGet: { path: /health, port: 8000 }
           initialDelaySeconds: 5
