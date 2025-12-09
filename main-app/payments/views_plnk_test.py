@@ -22,7 +22,6 @@ INTERNAL_TOKEN  = getattr(settings, "PAY_INTERNAL_TOKEN", "")
 @login_required
 @require_POST
 def create_plnk_test_link(request):
-    # только для тебя
     if request.user.username != "jigor":
         return HttpResponseForbidden("only for owner")
 
@@ -69,17 +68,35 @@ def create_plnk_test_link(request):
                 headers={"X-Internal-Token": INTERNAL_TOKEN},
             )
     except Exception as e:
-        logger.exception("PLNK create link error: %s", e)
+        logger.exception("PLNK create link error (httpx): %s", e)
         return JsonResponse({"ok": False, "error": "service unreachable"}, status=502)
 
+    text = resp.text
+    ctype = resp.headers.get("content-type", "")
+
     if resp.status_code != 200:
-        return JsonResponse({"ok": False, "error": resp.text}, status=resp.status_code)
+        logger.error("PLNK create_link non-200: %s %s", resp.status_code, text[:500])
+        return JsonResponse(
+            {"ok": False, "error": f"pay-api {resp.status_code}: {text[:200]}"},
+            status=resp.status_code,
+        )
 
-    data = resp.json()
+    try:
+        data = resp.json()
+    except ValueError:
+        logger.error(
+            "PLNK create_link non-json: ct=%s body=%s",
+            ctype,
+            text[:500],
+        )
+        return JsonResponse(
+            {"ok": False, "error": "pay-api returned non-json"},
+            status=502,
+        )
 
-    p.token = data.get("token")
-    p.public_url = data.get("public_url")
-    p.fk_url = data.get("plnk_url") or data.get("fk_url")
+    p.token = data.get("token") or ""
+    p.public_url = data.get("public_url") or ""
+    p.fk_url = data.get("plnk_url") or data.get("fk_url") or ""
     p.save(update_fields=["token", "public_url", "fk_url"])
 
     return JsonResponse({
@@ -94,9 +111,3 @@ def create_plnk_test_link(request):
     })
 
 
-@login_required
-@require_POST
-def create_plnk_start_test(request):
-    if request.user.username != "jigor":
-        return HttpResponseForbidden("only for owner")
-    # дальше как у тебя было (можешь по образцу выше поправить comment/ttl)
