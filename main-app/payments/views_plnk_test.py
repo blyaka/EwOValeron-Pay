@@ -1,6 +1,7 @@
 # payments/views_plnk_test.py
 import logging
 import httpx
+import uuid
 from decimal import Decimal
 
 from django.conf import settings
@@ -49,11 +50,16 @@ def create_plnk_test_link(request):
         return HttpResponseBadRequest("bad amount")
 
     order_id, seq, prefix, day = next_order_id_for(request.user)
-    print("PLNK_TEST: next_order_id_for ->",
-          "order_id=", order_id,
-          "seq=", seq,
-          "prefix=", prefix,
-          "day=", day)
+    print(
+        "PLNK_TEST: next_order_id_for ->",
+        "order_id=", order_id,
+        "seq=", seq,
+        "prefix=", prefix,
+        "day=", day,
+    )
+
+    # генерим уникальный токен, чтобы не ловить UNIQUE CONSTRAINT на token
+    initial_token = f"plnk-{uuid.uuid4().hex}"
 
     p = Payment.objects.create(
         user=request.user,
@@ -62,7 +68,7 @@ def create_plnk_test_link(request):
         order_prefix=prefix,
         order_date=day,
         payment_id=f"plnk-{order_id}",
-        token="temp",
+        token=initial_token,
         fk_url="",
         public_url="",
         amount=amount,
@@ -71,7 +77,7 @@ def create_plnk_test_link(request):
         comment=request.POST.get("comment") or "PLNK TEST",
         expires_at=timezone.now() + timezone.timedelta(hours=24),
     )
-    print("PLNK_TEST: Payment created, id=", p.id, "payment_id=", p.payment_id)
+    print("PLNK_TEST: Payment created, id=", p.id, "payment_id=", p.payment_id, "token=", p.token)
 
     ttl_raw = request.POST.get("ttl_minutes")
     ttl_minutes = int(ttl_raw or 60)
@@ -131,15 +137,24 @@ def create_plnk_test_link(request):
             status=502,
         )
 
-    p.token = data.get("token") or ""
+    api_token = data.get("token")
+    if api_token:
+        # если pay-api вернул токен — сохраняем его
+        p.token = api_token
+    else:
+        # если не вернул — оставляем сгенерированный initial_token
+        print("PLNK_TEST: pay-api did not return token, keep initial_token:", initial_token)
+
     p.public_url = data.get("public_url") or ""
     p.fk_url = data.get("plnk_url") or data.get("fk_url") or ""
     p.save(update_fields=["token", "public_url", "fk_url"])
 
-    print("PLNK_TEST: Payment updated:",
-          "token=", p.token,
-          "public_url=", p.public_url,
-          "fk_url=", p.fk_url)
+    print(
+        "PLNK_TEST: Payment updated:",
+        "token=", p.token,
+        "public_url=", p.public_url,
+        "fk_url=", p.fk_url,
+    )
 
     resp_data = {
         "ok": True,
