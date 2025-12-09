@@ -569,7 +569,7 @@ async def webhook(request: Request):
 
 
 
-from api_v2 import router as plnk_router
+from .api_v2 import router as plnk_router
 
 app.include_router(plnk_router)
 
