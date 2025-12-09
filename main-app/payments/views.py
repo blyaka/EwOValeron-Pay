@@ -14,6 +14,7 @@ from accounts.models import TelegramAccount
 
 from core.models import PaymentMethod
 
+
 @login_required
 @require_POST
 def generate_link(request):
@@ -43,7 +44,6 @@ def generate_link(request):
 
 
 
-# payments/views.py
 import json
 from django.views.decorators.csrf import csrf_exempt
 
