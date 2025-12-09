@@ -10,3 +10,4 @@ requests
 pika
 whitenoise
 aio_pika
+httpx==0.27.2
