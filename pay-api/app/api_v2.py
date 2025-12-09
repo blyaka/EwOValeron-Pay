@@ -111,7 +111,6 @@ async def _publish_payment_event(event: dict):
         logger.error("RabbitMQ error: %s", e)
 
 
-# --- Подпись invoice (метод 4.12) ---
 def _plnk_invoice_signature(
     *,
     amount: str,
@@ -135,56 +134,54 @@ def _plnk_invoice_signature(
     account: str,
 ) -> str:
     """
-    Формирование подписи для метода 4.12 по порядку из доки.
-    Часть опциональных полей включается только при наличии (email/phone/cf*/paytoken/backURL).
+    Подпись строго по 4.12:
+    amount, amountcurr, paysys, number, description, validity,
+    first_name, last_name, middle_name,
+    cf1, cf2, cf3 (блоком),
+    email, notify_email, phone, notify_phone,
+    paytoken, backURL,
+    account, secret1, secret2
     """
+
     parts: list[str] = []
 
-    def add(value: Optional[str]):
-        parts.append("" if value is None else str(value))
+    def add(v: Optional[str]) -> None:
+        parts.append("" if v is None else str(v))
 
-    # базовые поля (обязательные)
+    # базовые — ВСЕГДА участвуют
     add(amount)
     add(amountcurr)
     add(paysys)
     add(number)
     add(description)
 
-    # срок действия (если есть)
-    if validity:
-        add(validity)
+    # validity — всегда в сигнатуре, даже если не передаём (пустая строка)
+    add(validity or "")
 
-    # ФИО, по порядку
-    if first_name:
-        add(first_name)
-    if last_name:
-        add(last_name)
-    if middle_name:
-        add(middle_name)
+    # FIO — три плейсхолдера всегда
+    add(first_name or "")
+    add(last_name or "")
+    add(middle_name or "")
 
-    # cf1..cf3 – только если есть хоть одно непустое
+    # cf1..cf3 — блоком: либо все три, либо вообще ничего
     cf_block = [cf1, cf2, cf3]
     if any(v for v in cf_block):
         for v in cf_block:
             add(v or "")
 
-    # email + notify_email
+    # email / notify_email — либо пара, либо ничего (спец-правило из доки)
     if email:
         add(email)
-        if notify_email:
-            add(notify_email)
+        add(notify_email or "")
 
-    # phone + notify_phone
+    # phone / notify_phone — либо пара, либо ничего
     if phone:
         add(phone)
-        if notify_phone:
-            add(notify_phone)
+        add(notify_phone or "")
 
-    # paytoken
+    # paytoken / backURL — только если не пустые
     if paytoken:
         add(paytoken)
-
-    # backURL
     if backURL:
         add(backURL)
 
@@ -199,7 +196,6 @@ def _plnk_invoice_signature(
         key = ((PLNK_SECRET1 or "") + (PLNK_SECRET2 or "")).encode("utf-8")
         sig = hmac.new(key, base.encode("utf-8"), hashlib.sha256).hexdigest()
     else:
-        # по умолчанию md5
         sig = hashlib.md5(base.encode("utf-8")).hexdigest()
 
     return sig.upper()
