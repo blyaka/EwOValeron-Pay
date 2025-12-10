@@ -112,6 +112,7 @@ async def _publish_payment_event(event: dict):
 
 # ========= Подписи =========
 
+
 def _plnk_invoice_signature(
     *,
     amount: str,
@@ -119,49 +120,78 @@ def _plnk_invoice_signature(
     paysys: str,
     number: str,
     description: str,
+    validity: Optional[str],
+    first_name: Optional[str],
+    last_name: Optional[str],
+    middle_name: Optional[str],
+    cf1: Optional[str],
+    cf2: Optional[str],
+    cf3: Optional[str],
+    email: Optional[str],
+    notify_email: Optional[str],
+    phone: Optional[str],
+    notify_phone: Optional[str],
+    paytoken: Optional[str],
+    backURL: Optional[str],
     account: str,
-    cf1: Optional[str] = None,
 ) -> str:
-    """
-    УПРОЩЁННЫЙ И СТРОГО ФИКСИРОВАННЫЙ ВАРИАНТ ПОДПИСИ ДЛЯ 4.12
-    По сути — то, что они прислали в примере и что реалистично встречается у эквайров:
+    parts: list[str] = []
 
-    base = amount:amountcurr:paysys:number:description:account[:cf1]:secret1:secret2
+    def add(v: Optional[str]) -> None:
+        parts.append("" if v is None else str(v))
 
-    - description: ровно та строка, которую отправляем в запросе (у тебя сейчас это уже URL-encoded)
-    - cf1: включаем в подпись только если реально отправляем cf1 в запросе
-    - НИЧЕГО лишнего (ни email, ни phone, ни validity, ни first_name) в подпись не пихаем
-    """
+    # Жёсткое ядро — всегда
+    add(amount)
+    add(amountcurr)
+    add(paysys)
+    add(number)
+    add(description)
 
-    parts = [
-        amount,        # '218.00'
-        amountcurr,    # 'RUB'
-        paysys,        # 'MBC' / 'EXT'
-        number,        # 'plnk-JIG-2025...'
-        description,   # 'Order%20JIG-20251210-11' ИЛИ не-энкодед, но строго то же самое, что в payload
-        account,       # 'ACC1023388'
-    ]
+    # validity всегда участвует, даже если не передаёшь (пустая строка)
+    add(validity or "")
 
-    if cf1:
-        parts.append(cf1)
+    # FIO — три плейсхолдера всегда по доке
+    add(first_name or "")
+    add(last_name or "")
+    add(middle_name or "")
 
+    # cf1..cf3 блоком, только если хоть одно непустое
+    cf_block = [cf1, cf2, cf3]
+    if any(v for v in cf_block):
+        for v in cf_block:
+            add(v or "")
+
+    # email / notify_email — пара или ничего
+    if email:
+        add(email)
+        add(notify_email or "")
+
+    # phone / notify_phone — пара или ничего
+    if phone:
+        add(phone)
+        add(notify_phone or "")
+
+    # paytoken / backURL — только если не пустые
+    if paytoken:
+        add(paytoken)
+    if backURL:
+        add(backURL)
+
+    # account + секреты
+    add(account)
     parts.append(PLNK_SECRET1 or "")
     parts.append(PLNK_SECRET2 or "")
 
     base = ":".join(parts)
 
-    # ЛОГИРУЕМ базовую строку, чтобы можно было отправить их техам
-    logger.info("PLNK 4.12 base string for signature: %s", base)
-
     if PLNK_HASH_ALG == "sha256":
         key = ((PLNK_SECRET1 or "") + (PLNK_SECRET2 or "")).encode("utf-8")
         sig = hmac.new(key, base.encode("utf-8"), hashlib.sha256).hexdigest()
     else:
-        # ОЧЕНЬ ВАЖНО: оставляем в нижнем регистре, md5().hexdigest() по дефолту lower-case
         sig = hashlib.md5(base.encode("utf-8")).hexdigest()
 
-    # НЕ upper(), чтобы не ловить кейс-сенситивную хуёвину
-    return sig
+    return sig.upper()
+
 
 
 def _plnk_start_signature(
@@ -276,27 +306,43 @@ async def plnk_create_invoice(
     # Сейчас у тебя в проде уже URL-encoded строка, судя по логам. Делаем так же.
     desc_raw = body.description or f"Payment {number} {amount_str} {amountcurr}"
     if len(desc_raw) < 6:
-        desc_raw = (desc_raw + "      ")[:6]
+        desc_raw = (desc_raw + " " * 6)[:6]
 
-    # Если хочешь — можно закодировать, но и в подпись пойдёт уже кодированная строка
-    from urllib.parse import quote as _quote
+    # ВАЖНО: description в подписи и в payload должны быть ОДИНАКОВЫМИ.
+    # Если фронт уже присылает URL-encoded строку (как у тебя 'Order%20JIG...'),
+    # то мы НИЧЕГО не перекодируем:
+    description = desc_raw
 
-    description = _quote(desc_raw, safe="")
+    validity_str: Optional[str] = None
+    if body.validity_minutes:
+        dt = datetime.utcnow() + timedelta(minutes=body.validity_minutes)
+        validity_str = dt.replace(microsecond=0).isoformat() + "+00:00"
 
     email = body.email or None
     phone = body.phone or None
-
     notify_email = "1" if email else None
     notify_phone = "1" if phone else None
 
-    signature = _plnk_invoice_signature(
+    sig = _plnk_invoice_signature(
         amount=amount_str,
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
         description=description,
-        account=PLNK_ACCOUNT,
+        validity=validity_str,
+        first_name=body.first_name,
+        last_name=None,
+        middle_name=None,
         cf1=body.cf1,
+        cf2=None,
+        cf3=None,
+        email=email,
+        notify_email=notify_email,
+        phone=phone,
+        notify_phone=notify_phone,
+        paytoken=None,
+        backURL=None,
+        account=PLNK_ACCOUNT,
     )
 
     payload: Dict[str, Any] = {
@@ -306,10 +352,11 @@ async def plnk_create_invoice(
         "number": number,
         "description": description,
         "account": PLNK_ACCOUNT,
-        "signature": signature,
+        "signature": sig,
     }
 
-    # Остальные поля докидываем, НО в подпись они не входят
+    if validity_str:
+        payload["validity"] = validity_str
     if body.first_name:
         payload["first_name"] = body.first_name
     if email:
@@ -320,6 +367,7 @@ async def plnk_create_invoice(
         payload["notify_phone"] = notify_phone
     if body.cf1:
         payload["cf1"] = body.cf1
+
 
     logger.info("PLNK 4.12 payload=%s", payload)
 
