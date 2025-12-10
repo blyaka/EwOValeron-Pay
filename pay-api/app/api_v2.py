@@ -13,6 +13,7 @@ import aio_pika
 import asyncio
 import redis.asyncio as redis
 import re
+from urllib.parse import quote
 
 from datetime import datetime, timedelta
 
@@ -119,7 +120,7 @@ def _plnk_invoice_signature(
     amountcurr: str,
     paysys: str,
     number: str,
-    description: str,
+    description: str,   # УЖЕ URL-encoded
     validity: Optional[str],
     first_name: Optional[str],
     last_name: Optional[str],
@@ -135,43 +136,72 @@ def _plnk_invoice_signature(
     backURL: Optional[str],
     account: str,
 ) -> str:
+    """
+    Подпись строго по 4.12:
+
+    base = amount
+           :amountcurr
+           :paysys
+           :number
+           :description
+           [:validity]
+           :first_name
+           :last_name
+           :middle_name
+           [:cf1][:cf2][:cf3]
+           [:email][:notify_email]
+           [:phone][:notify_phone]
+           [:paytoken]
+           [:backURL]
+           :account
+           :secret1
+           :secret2
+
+    - FIO всегда присутствуют (если нет — пустые строки, двоеточия остаются)
+    - cf1..cf3: либо все три, либо ни одного
+    - email/notify_email: пара, только если email не пустой
+    - phone/notify_phone: пара, только если phone не пустой
+    - validity, paytoken, backURL: только если есть
+    """
+
     parts: list[str] = []
 
     def add(v: Optional[str]) -> None:
         parts.append("" if v is None else str(v))
 
-    # Жёсткое ядро — всегда
+    # базовые
     add(amount)
     add(amountcurr)
     add(paysys)
     add(number)
     add(description)
 
-    # validity всегда участвует, даже если не передаёшь (пустая строка)
-    add(validity or "")
+    # validity — только если реально передаём параметр
+    if validity is not None:
+        add(validity)
 
-    # FIO — три плейсхолдера всегда по доке
+    # FIO — всегда три плейсхолдера
     add(first_name or "")
     add(last_name or "")
     add(middle_name or "")
 
-    # cf1..cf3 блоком, только если хоть одно непустое
-    cf_block = [cf1, cf2, cf3]
-    if any(v for v in cf_block):
-        for v in cf_block:
-            add(v or "")
+    # cf1..cf3 — блоком
+    if any([cf1, cf2, cf3]):
+        add(cf1 or "")
+        add(cf2 or "")
+        add(cf3 or "")
 
-    # email / notify_email — пара или ничего
+    # email / notify_email — пара
     if email:
         add(email)
         add(notify_email or "")
 
-    # phone / notify_phone — пара или ничего
+    # phone / notify_phone — пара
     if phone:
         add(phone)
         add(notify_phone or "")
 
-    # paytoken / backURL — только если не пустые
+    # paytoken / backURL
     if paytoken:
         add(paytoken)
     if backURL:
@@ -179,10 +209,13 @@ def _plnk_invoice_signature(
 
     # account + секреты
     add(account)
-    # parts.append(PLNK_SECRET1 or "")
+    parts.append(PLNK_SECRET1 or "")
     parts.append(PLNK_SECRET2 or "")
 
     base = ":".join(parts)
+
+    # Лог для дебага — можно оставить, пока не договоришься с саппортом
+    logger.info("PLNK 4.12 sign base=%r", base)
 
     if PLNK_HASH_ALG == "sha256":
         key = ((PLNK_SECRET1 or "") + (PLNK_SECRET2 or "")).encode("utf-8")
@@ -297,21 +330,16 @@ async def plnk_create_invoice(
             )
             return cached
 
-    number = body.payment_id or f"plnk-{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
+    number = body.payment_id or f"plnk-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
     amount_str = f"{body.amount:.2f}"
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    # ВАЖНО: description ДОЛЖЕН быть ровно таким же и в payload, и в подписи.
-    # Сейчас у тебя в проде уже URL-encoded строка, судя по логам. Делаем так же.
+    # описание минимум 6 символов, URL-encoded
     desc_raw = body.description or f"Payment {number} {amount_str} {amountcurr}"
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + " " * 6)[:6]
-
-    # ВАЖНО: description в подписи и в payload должны быть ОДИНАКОВЫМИ.
-    # Если фронт уже присылает URL-encoded строку (как у тебя 'Order%20JIG...'),
-    # то мы НИЧЕГО не перекодируем:
-    description = desc_raw
+    description_encoded = quote(desc_raw, safe="")
 
     validity_str: Optional[str] = None
     if body.validity_minutes:
@@ -320,6 +348,7 @@ async def plnk_create_invoice(
 
     email = body.email or None
     phone = body.phone or None
+
     notify_email = "1" if email else None
     notify_phone = "1" if phone else None
 
@@ -328,7 +357,7 @@ async def plnk_create_invoice(
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
-        description=description,
+        description=description_encoded,
         validity=validity_str,
         first_name=body.first_name,
         last_name=None,
@@ -350,7 +379,7 @@ async def plnk_create_invoice(
         "amountcurr": amountcurr,
         "paysys": paysys,
         "number": number,
-        "description": description,
+        "description": description_encoded,
         "account": PLNK_ACCOUNT,
         "signature": sig,
     }
@@ -367,7 +396,6 @@ async def plnk_create_invoice(
         payload["notify_phone"] = notify_phone
     if body.cf1:
         payload["cf1"] = body.cf1
-
 
     logger.info("PLNK 4.12 payload=%s", payload)
 
@@ -413,6 +441,8 @@ async def plnk_create_invoice(
         await idem_set(x_idempotency_key, resp)
 
     return resp
+
+
 
 
 # ========= 2) Прокладочная ссылка (аналог /internal/create_link) =========
