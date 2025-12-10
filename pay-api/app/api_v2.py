@@ -112,8 +112,6 @@ async def _publish_payment_event(event: dict):
 
 
 # ========= Подписи =========
-
-
 def _plnk_invoice_signature(
     *,
     amount: str,
@@ -136,72 +134,44 @@ def _plnk_invoice_signature(
     backURL: Optional[str],
     account: str,
 ) -> str:
-    """
-    Подпись строго по 4.12:
-
-    base = amount
-           :amountcurr
-           :paysys
-           :number
-           :description
-           [:validity]
-           :first_name
-           :last_name
-           :middle_name
-           [:cf1][:cf2][:cf3]
-           [:email][:notify_email]
-           [:phone][:notify_phone]
-           [:paytoken]
-           [:backURL]
-           :account
-           :secret1
-           :secret2
-
-    - FIO всегда присутствуют (если нет — пустые строки, двоеточия остаются)
-    - cf1..cf3: либо все три, либо ни одного
-    - email/notify_email: пара, только если email не пустой
-    - phone/notify_phone: пара, только если phone не пустой
-    - validity, paytoken, backURL: только если есть
-    """
-
     parts: list[str] = []
 
     def add(v: Optional[str]) -> None:
         parts.append("" if v is None else str(v))
 
-    # базовые
+    # базовые поля
     add(amount)
     add(amountcurr)
     add(paysys)
     add(number)
     add(description)
 
-    # validity — только если реально передаём параметр
-    if validity is not None:
-        add(validity)
+    # ВАЖНО: validity всегда должна занимать своё место,
+    # даже если параметр в запросе не передаётся
+    add(validity or "")
 
-    # FIO — всегда три плейсхолдера
+    # FIO — три плейсхолдера всегда
     add(first_name or "")
     add(last_name or "")
     add(middle_name or "")
 
-    # cf1..cf3 — блоком
+    # cf1..cf3 — блоком, только если хотя бы одно непустое
     if any([cf1, cf2, cf3]):
         add(cf1 or "")
         add(cf2 or "")
         add(cf3 or "")
 
-    # email / notify_email — пара
+    # email / notify_email — пара только если email задан
     if email:
         add(email)
         add(notify_email or "")
 
-    # phone / notify_phone — пара
+    # phone / notify_phone — пара только если phone задан
     if phone:
         add(phone)
         add(notify_phone or "")
 
-    # paytoken / backURL
+    # paytoken / backURL — только если есть
     if paytoken:
         add(paytoken)
     if backURL:
@@ -213,8 +183,6 @@ def _plnk_invoice_signature(
     parts.append(PLNK_SECRET2 or "")
 
     base = ":".join(parts)
-
-    # Лог для дебага — можно оставить, пока не договоришься с саппортом
     logger.info("PLNK 4.12 sign base=%r", base)
 
     if PLNK_HASH_ALG == "sha256":
@@ -224,6 +192,7 @@ def _plnk_invoice_signature(
         sig = hashlib.md5(base.encode("utf-8")).hexdigest()
 
     return sig.upper()
+
 
 
 
