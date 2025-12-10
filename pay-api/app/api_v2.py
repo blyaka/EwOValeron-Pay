@@ -488,6 +488,11 @@ async def plnk_internal_create_link(
     ttl_sec = ttl_min * 60
     exp_iso = (datetime.utcnow() + timedelta(seconds=ttl_sec)).isoformat() + "Z"
 
+    # 👇 вот тут подставляем заглушку, если с фронта пришла пустота
+    phone = body.phone.strip() if body.phone else None
+    if not phone:
+        phone = "+79999999999"  # временная заглушка; потом поменяем на реальный номер
+
     if x_idempotency_key:
         cached = await idem_get(x_idempotency_key)
         if cached:
@@ -512,7 +517,7 @@ async def plnk_internal_create_link(
         body=PlnkInvoiceCreate(
             amount=body.amount,
             email=body.email,
-            phone=body.phone,
+            phone=phone,  # 👈 тут уже всегда НЕ пустой
             description=body.description,
             payment_id=body.payment_id,
             cf1=body.cf1,
