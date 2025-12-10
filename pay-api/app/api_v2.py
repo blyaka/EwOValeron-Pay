@@ -134,37 +134,31 @@ def _plnk_invoice_signature(
     account: str,
 ) -> str:
     """
-    УПРОЩЁННЫЙ вариант строго по тому, что прислали в письме:
+    4.12 по письму:
+      amount, amountcurr, paysys, number, description, first_name, account, cf1, secret1, secret2
 
-    4.12:
-      amount, amountcurr, paysys, number, description, first_name, account, cf1, [secret1], [secret2]
-
-    - validity НЕ включаем в подпись
-    - email / phone НЕ включаем в подпись
-    - cf2 / cf3 тоже мимо для нашего кейса
+    validity / email / phone / cf2 / cf3 в подпись не идём.
     """
 
     parts: list[str] = []
 
-    # БАЗОВЫЕ — строго в таком порядке
+    # базовые поля
     parts.append(amount)         # '60.25'
     parts.append(amountcurr)     # 'RUB'
     parts.append(paysys)         # 'EXT' / 'MBC'
     parts.append(number)         # '123456789'
-    parts.append(description)    # URL-encoded строка
+    parts.append(description)    # уже URL-encoded строка
 
-    # first_name — в примере идёт сразу после description
-    if first_name:
-        parts.append(first_name)
+    # first_name — всегда слот, даже если пустой
+    parts.append(first_name or "")
 
     # account — всегда
     parts.append(account)
 
-    # cf1 — если есть (userid:123…)
-    if cf1:
-        parts.append(cf1)
+    # cf1 — всегда слот, даже если пустой
+    parts.append(cf1 or "")
 
-    # СЕКРЕТЫ — в конце
+    # секреты
     parts.append(PLNK_SECRET1 or "")
     parts.append(PLNK_SECRET2 or "")
 
@@ -295,11 +289,11 @@ async def plnk_create_invoice(
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    # Описание минимум 6 символов — БЕЗ ручного urlencode
+    # Описание минимум 6 символов и сразу URL-encoded
     desc_raw = body.description or f"Payment {number} {amount_str} {amountcurr}"
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + " " * 6)[:6]
-    description = desc_raw  # <- ВОТ ЭТО мы теперь и подписываем и отправляем
+    description = quote(desc_raw, safe="")  # ЭТУ строку подписываем и отправляем
 
     validity_str: Optional[str] = None
     if body.validity_minutes:
@@ -339,7 +333,7 @@ async def plnk_create_invoice(
         "amountcurr": amountcurr,
         "paysys": paysys,
         "number": number,
-        "description": description,
+        "description": description,   # та же строка, что и в подписи
         "account": PLNK_ACCOUNT,
         "signature": sig,
     }
