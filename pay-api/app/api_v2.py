@@ -179,7 +179,7 @@ def _plnk_invoice_signature(
 
     # account + секреты
     add(account)
-    parts.append(PLNK_SECRET1 or "")
+    # parts.append(PLNK_SECRET1 or "")
     parts.append(PLNK_SECRET2 or "")
 
     base = ":".join(parts)
