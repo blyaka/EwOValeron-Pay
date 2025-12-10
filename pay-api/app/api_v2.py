@@ -39,6 +39,7 @@ PLNK_HASH_ALG = os.getenv("PLNK_HASH_ALG", "md5").lower()  # md5 | sha256
 PAY_LINK_TTL_HOURS = int(os.getenv("PAY_LINK_TTL_HOURS", "24"))
 IDEMP_TTL_SEC = int(os.getenv("IDEMP_TTL_SEC", "86400"))
 INTERNAL_TOKEN = os.getenv("PAY_INTERNAL_TOKEN")
+PLNK_BACKURL = os.getenv("PLNK_BACKURL")
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -134,6 +135,28 @@ def _plnk_invoice_signature(
     backURL: Optional[str],
     account: str,
 ) -> str:
+    """
+    4.12 invoice:
+
+    base = amount
+           :amountcurr
+           :paysys
+           :number
+           :description
+           :validity
+           :first_name
+           :last_name
+           :middle_name
+           [:cf1][:cf2][:cf3]
+           [:email][:notify_email]
+           [:phone][:notify_phone]
+           [:paytoken]
+           :backURL
+           :account
+           :secret1
+           :secret2
+    """
+
     parts: list[str] = []
 
     def add(v: Optional[str]) -> None:
@@ -146,8 +169,7 @@ def _plnk_invoice_signature(
     add(number)
     add(description)
 
-    # ВАЖНО: validity всегда должна занимать своё место,
-    # даже если параметр в запросе не передаётся
+    # validity — ВСЕГДА свой слот (если нет, то пустая строка)
     add(validity or "")
 
     # FIO — три плейсхолдера всегда
@@ -171,11 +193,12 @@ def _plnk_invoice_signature(
         add(phone)
         add(notify_phone or "")
 
-    # paytoken / backURL — только если есть
+    # paytoken — только если реально есть (не пустой)
     if paytoken:
         add(paytoken)
-    if backURL:
-        add(backURL)
+
+    # backURL — ВСЕГДА слот, даже если параметр не передаём
+    add(backURL or "")
 
     # account + секреты
     add(account)
@@ -321,6 +344,8 @@ async def plnk_create_invoice(
     notify_email = "1" if email else None
     notify_phone = "1" if phone else None
 
+    back_url = PLNK_BACKURL
+
     sig = _plnk_invoice_signature(
         amount=amount_str,
         amountcurr=amountcurr,
@@ -339,9 +364,10 @@ async def plnk_create_invoice(
         phone=phone,
         notify_phone=notify_phone,
         paytoken=None,
-        backURL=None,
+        backURL=back_url,
         account=PLNK_ACCOUNT,
     )
+
 
     payload: Dict[str, Any] = {
         "amount": amount_str,
@@ -365,6 +391,9 @@ async def plnk_create_invoice(
         payload["notify_phone"] = notify_phone
     if body.cf1:
         payload["cf1"] = body.cf1
+    if back_url:
+        payload["backURL"] = back_url
+
 
     logger.info("PLNK 4.12 payload=%s", payload)
 
