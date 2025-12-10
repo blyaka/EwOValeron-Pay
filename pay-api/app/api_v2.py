@@ -329,7 +329,7 @@ async def plnk_create_invoice(
     desc_raw = body.description or f"Payment {number} {amount_str} {amountcurr}"
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + "      ")[:6]
-    description_encoded = quote(desc_raw, safe="")
+    description = desc_raw
 
     # validity: если явно не задали — ставим 24 часа
     if body.validity_minutes:
@@ -358,7 +358,7 @@ async def plnk_create_invoice(
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
-        description=description_encoded,
+        description=description,
         validity=validity_str,           # мы его реально отправим ниже
         first_name=first_name,
         last_name=last_name,
@@ -380,7 +380,7 @@ async def plnk_create_invoice(
         "amountcurr": amountcurr,
         "paysys": paysys,
         "number": number,
-        "description": description_encoded,
+        "description": description,
         "account": PLNK_ACCOUNT,
         "signature": sig,
     }
