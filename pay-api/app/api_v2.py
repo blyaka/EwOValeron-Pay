@@ -135,58 +135,24 @@ def _plnk_invoice_signature(
     backURL: Optional[str],
     account: str,
 ) -> str:
-    parts: list[str] = []
+    # ВАЖНО: для 4.12 используем только базовые поля:
+    # amount:amountcurr:paysys:number:description:account:secret1:secret2
 
-    # amount, amountcurr, paysys, number, description — всегда
-    parts.append(amount)
-    parts.append(amountcurr)
-    parts.append(paysys)
-    parts.append(number)
-    parts.append(description)
-
-    # validity — дока не оговаривает исключение при пустоте,
-    # поэтому: если есть значение — добавляем, если нет — просто пропускаем
-    if validity:
-        parts.append(validity)
-
-    # FIO — три слота всегда
-    parts.append(first_name or "")
-    parts.append(last_name or "")
-    parts.append(middle_name or "")
-
-    # cf1..cf3 — добавляем блоком, только если хотя бы один не пустой
-    if any([cf1, cf2, cf3]):
-        parts.append(cf1 or "")
-        parts.append(cf2 or "")
-        parts.append(cf3 or "")
-
-    # email / notify_email — только если email не пустой
-    if email:
-        parts.append(email)
-        parts.append(notify_email or "")
-
-    # phone / notify_phone — только если phone не пустой
-    if phone:
-        parts.append(phone)
-        parts.append(notify_phone or "")
-
-    # paytoken — только если непустой
-    if paytoken:
-        parts.append(paytoken)
-
-    # backURL — только если непустой
-    if backURL:
-        parts.append(backURL)
-
-    # account + секреты
-    parts.append(account)
-    parts.append(PLNK_SECRET1 or "")
-    parts.append(PLNK_SECRET2 or "")
+    parts: list[str] = [
+        amount,
+        amountcurr,
+        paysys,
+        number,
+        description,
+        account,
+        PLNK_SECRET1 or "",
+        PLNK_SECRET2 or "",
+    ]
 
     base = ":".join(parts)
 
     print("\n" + "=" * 80)
-    print("PLNK 4.12 SIGNATURE DEBUG")
+    print("PLNK 4.12 SIGNATURE DEBUG (MINIMAL)")
     print("BASE:", base)
     print("HASH ALG   :", PLNK_HASH_ALG)
     print("KEY (secret1+secret2):", (PLNK_SECRET1 or "") + (PLNK_SECRET2 or ""))
@@ -203,6 +169,7 @@ def _plnk_invoice_signature(
     print("=" * 80 + "\n")
 
     return sig.upper()
+
 
 
 
