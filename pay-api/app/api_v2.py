@@ -135,28 +135,6 @@ def _plnk_invoice_signature(
     backURL: Optional[str],
     account: str,
 ) -> str:
-    """
-    Сигнатура 4.12 строго по доке:
-
-    base = amount
-           :amountcurr
-           :paysys
-           :number
-           :description
-           [:validity]
-           :first_name
-           :last_name
-           :middle_name
-           [:cf1][:cf2][:cf3]
-           [:email][:notify_email]
-           [:phone][:notify_phone]
-           [:paytoken]
-           [:backURL]
-           :account
-           :secret1
-           :secret2
-    """
-
     parts: list[str] = []
 
     # базовые параметры
@@ -166,11 +144,10 @@ def _plnk_invoice_signature(
     parts.append(number)
     parts.append(description)
 
-    # validity — ТОЛЬКО если реально есть параметр
-    if validity:
-        parts.append(validity)
+    # validity — ВСЕГДА слот, даже если пустой
+    parts.append(validity or "")
 
-    # FIO — всегда три слота, даже если часть пустые
+    # FIO — всегда три слота
     parts.append(first_name or "")
     parts.append(last_name or "")
     parts.append(middle_name or "")
@@ -181,21 +158,19 @@ def _plnk_invoice_signature(
         parts.append(cf2 or "")
         parts.append(cf3 or "")
 
-    # email / notify_email — блок, только если email непустой
-    if email:
-        parts.append(email)
-        parts.append(notify_email or "")
+    # email / notify_email — ВСЕГДА два слота
+    parts.append(email or "")
+    parts.append(notify_email or "")
 
-    # phone / notify_phone — блок, только если phone непустой
-    if phone:
-        parts.append(phone)
-        parts.append(notify_phone or "")
+    # phone / notify_phone — ВСЕГДА два слота
+    parts.append(phone or "")
+    parts.append(notify_phone or "")
 
     # paytoken — только если есть
     if paytoken:
         parts.append(paytoken)
 
-    # backURL — только если реально передали параметр
+    # backURL — только если есть
     if backURL:
         parts.append(backURL)
 
@@ -208,37 +183,18 @@ def _plnk_invoice_signature(
 
     key = ((PLNK_SECRET1 or "") + (PLNK_SECRET2 or "")).encode("utf-8")
 
-    # ======= ГРУБЫЕ ПРИНТЫ ДЛЯ ОТЛАДКИ =======
     print("\n" + "=" * 80)
     print("PLNK 4.12 SIGNATURE DEBUG")
-    print("amount      :", amount)
-    print("amountcurr  :", amountcurr)
-    print("paysys      :", paysys)
-    print("number      :", number)
-    print("description :", description)
-    print("validity    :", validity)
-    print("first_name  :", first_name)
-    print("last_name   :", last_name)
-    print("middle_name :", middle_name)
-    print("cf1 / cf2 / cf3:", cf1, cf2, cf3)
-    print("email / notify_email:", email, notify_email)
-    print("phone / notify_phone:", phone, notify_phone)
-    print("paytoken    :", paytoken)
-    print("backURL     :", backURL)
-    print("account     :", account)
-    print("--- BASE STRING ---")
-    print(base)
+    print("BASE:", base)
     print("HASH ALG   :", PLNK_HASH_ALG)
     print("KEY (secret1+secret2):", (PLNK_SECRET1 or "") + (PLNK_SECRET2 or ""))
     print("=" * 80 + "\n")
-    # ==========================================
 
     if PLNK_HASH_ALG == "sha256":
         sig = hmac.new(key, base.encode("utf-8"), hashlib.sha256).hexdigest()
     else:
         sig = hashlib.md5(base.encode("utf-8")).hexdigest()
 
-    # выводим итог
     print("PLNK 4.12 SIGNATURE HEX:", sig.upper())
     print("=" * 80 + "\n")
 
@@ -449,7 +405,7 @@ async def plnk_create_invoice(
         payload["backURL"] = back_url
 
     logger.info("PLNK 4.12 payload=%s", payload)
-    
+
     print("==== PLNK 4.12 OUTGOING PAYLOAD ====")
     try:
         print(json.dumps(payload, ensure_ascii=False))
