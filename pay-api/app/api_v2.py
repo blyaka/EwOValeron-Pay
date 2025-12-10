@@ -136,14 +136,14 @@ def _plnk_invoice_signature(
     account: str,
 ) -> str:
     """
-    4.12 invoice:
+    Сигнатура 4.12 строго по доке:
 
     base = amount
            :amountcurr
            :paysys
            :number
            :description
-           :validity
+           [:validity]
            :first_name
            :last_name
            :middle_name
@@ -151,7 +151,7 @@ def _plnk_invoice_signature(
            [:email][:notify_email]
            [:phone][:notify_phone]
            [:paytoken]
-           :backURL
+           [:backURL]
            :account
            :secret1
            :secret2
@@ -159,62 +159,92 @@ def _plnk_invoice_signature(
 
     parts: list[str] = []
 
-    def add(v: Optional[str]) -> None:
-        parts.append("" if v is None else str(v))
+    # базовые параметры
+    parts.append(amount)
+    parts.append(amountcurr)
+    parts.append(paysys)
+    parts.append(number)
+    parts.append(description)
 
-    # базовые поля
-    add(amount)
-    add(amountcurr)
-    add(paysys)
-    add(number)
-    add(description)
+    # validity — ТОЛЬКО если реально есть параметр
+    if validity:
+        parts.append(validity)
 
-    # validity — ВСЕГДА свой слот (если нет, то пустая строка)
-    add(validity or "")
+    # FIO — всегда три слота, даже если часть пустые
+    parts.append(first_name or "")
+    parts.append(last_name or "")
+    parts.append(middle_name or "")
 
-    # FIO — три плейсхолдера всегда
-    add(first_name or "")
-    add(last_name or "")
-    add(middle_name or "")
-
-    # cf1..cf3 — блоком, только если хотя бы одно непустое
+    # cf1..cf3 — блоком, только если хотя бы один непустой
     if any([cf1, cf2, cf3]):
-        add(cf1 or "")
-        add(cf2 or "")
-        add(cf3 or "")
+        parts.append(cf1 or "")
+        parts.append(cf2 or "")
+        parts.append(cf3 or "")
 
-    # email / notify_email — пара только если email задан
+    # email / notify_email — блок, только если email непустой
     if email:
-        add(email)
-        add(notify_email or "")
+        parts.append(email)
+        parts.append(notify_email or "")
 
-    # phone / notify_phone — пара только если phone задан
+    # phone / notify_phone — блок, только если phone непустой
     if phone:
-        add(phone)
-        add(notify_phone or "")
+        parts.append(phone)
+        parts.append(notify_phone or "")
 
-    # paytoken — только если реально есть (не пустой)
+    # paytoken — только если есть
     if paytoken:
-        add(paytoken)
+        parts.append(paytoken)
 
-    # backURL — ВСЕГДА слот, даже если параметр не передаём
-    add(backURL or "")
+    # backURL — только если реально передали параметр
+    if backURL:
+        parts.append(backURL)
 
     # account + секреты
-    add(account)
+    parts.append(account)
     parts.append(PLNK_SECRET1 or "")
     parts.append(PLNK_SECRET2 or "")
 
     base = ":".join(parts)
-    logger.info("PLNK 4.12 sign base=%r", base)
+
+    key = ((PLNK_SECRET1 or "") + (PLNK_SECRET2 or "")).encode("utf-8")
+
+    # ======= ГРУБЫЕ ПРИНТЫ ДЛЯ ОТЛАДКИ =======
+    print("\n" + "=" * 80)
+    print("PLNK 4.12 SIGNATURE DEBUG")
+    print("amount      :", amount)
+    print("amountcurr  :", amountcurr)
+    print("paysys      :", paysys)
+    print("number      :", number)
+    print("description :", description)
+    print("validity    :", validity)
+    print("first_name  :", first_name)
+    print("last_name   :", last_name)
+    print("middle_name :", middle_name)
+    print("cf1 / cf2 / cf3:", cf1, cf2, cf3)
+    print("email / notify_email:", email, notify_email)
+    print("phone / notify_phone:", phone, notify_phone)
+    print("paytoken    :", paytoken)
+    print("backURL     :", backURL)
+    print("account     :", account)
+    print("--- BASE STRING ---")
+    print(base)
+    print("HASH ALG   :", PLNK_HASH_ALG)
+    print("KEY (secret1+secret2):", (PLNK_SECRET1 or "") + (PLNK_SECRET2 or ""))
+    print("=" * 80 + "\n")
+    # ==========================================
 
     if PLNK_HASH_ALG == "sha256":
-        key = ((PLNK_SECRET1 or "") + (PLNK_SECRET2 or "")).encode("utf-8")
         sig = hmac.new(key, base.encode("utf-8"), hashlib.sha256).hexdigest()
     else:
         sig = hashlib.md5(base.encode("utf-8")).hexdigest()
 
+    # выводим итог
+    print("PLNK 4.12 SIGNATURE HEX:", sig.upper())
+    print("=" * 80 + "\n")
+
     return sig.upper()
+
+
 
 
 
@@ -298,7 +328,6 @@ class PlnkInternalCreateLink(BaseModel):
 
 
 # ========= 1) Низкоуровневый invoice (4.12) =========
-
 @router.post("/create_invoice")
 async def plnk_create_invoice(
     body: PlnkInvoiceCreate,
@@ -330,13 +359,20 @@ async def plnk_create_invoice(
     # описание минимум 6 символов, URL-encoded
     desc_raw = body.description or f"Payment {number} {amount_str} {amountcurr}"
     if len(desc_raw) < 6:
-        desc_raw = (desc_raw + " " * 6)[:6]
+        desc_raw = (desc_raw + "      ")[:6]
     description_encoded = quote(desc_raw, safe="")
 
-    validity_str: Optional[str] = None
+    # validity: если явно не задали — ставим 24 часа
     if body.validity_minutes:
         dt = datetime.utcnow() + timedelta(minutes=body.validity_minutes)
-        validity_str = dt.replace(microsecond=0).isoformat() + "+00:00"
+    else:
+        dt = datetime.utcnow() + timedelta(hours=24)
+    validity_str = dt.replace(microsecond=0).isoformat() + "+00:00"
+
+    # FIO — мок: если нет first_name, то "Client"
+    first_name = body.first_name or "Client"
+    last_name = None   # не передаём, но слот в подписи будет как ""
+    middle_name = None
 
     email = body.email or None
     phone = body.phone or None
@@ -344,7 +380,8 @@ async def plnk_create_invoice(
     notify_email = "1" if email else None
     notify_phone = "1" if phone else None
 
-    back_url = PLNK_BACKURL
+    # backURL — из конфига, если есть
+    back_url = PLNK_BACKURL or None
 
     sig = _plnk_invoice_signature(
         amount=amount_str,
@@ -352,10 +389,10 @@ async def plnk_create_invoice(
         paysys=paysys,
         number=number,
         description=description_encoded,
-        validity=validity_str,
-        first_name=body.first_name,
-        last_name=None,
-        middle_name=None,
+        validity=validity_str,           # мы его реально отправим ниже
+        first_name=first_name,
+        last_name=last_name,
+        middle_name=middle_name,
         cf1=body.cf1,
         cf2=None,
         cf3=None,
@@ -368,7 +405,6 @@ async def plnk_create_invoice(
         account=PLNK_ACCOUNT,
     )
 
-
     payload: Dict[str, Any] = {
         "amount": amount_str,
         "amountcurr": amountcurr,
@@ -379,23 +415,48 @@ async def plnk_create_invoice(
         "signature": sig,
     }
 
+    # Всё, что использовалось в подписи — тоже отправляем
+
+    # validity — реально в запрос
     if validity_str:
         payload["validity"] = validity_str
-    if body.first_name:
-        payload["first_name"] = body.first_name
+
+    # FIO
+    if first_name:
+        payload["first_name"] = first_name
+    # last_name и middle_name можно не слать, раз мы их как None в подпись положили как ""
+    # если хочешь — можно и передавать пустые:
+    # payload["last_name"] = ""
+    # payload["middle_name"] = ""
+
+    # cf1
+    if body.cf1:
+        payload["cf1"] = body.cf1
+        # cf2 / cf3 не отправляем, раз они None и в подписи не участвовали
+
+    # email / notify_email
     if email:
         payload["email"] = email
         payload["notify_email"] = notify_email
+
+    # phone / notify_phone
     if phone:
         payload["phone"] = phone
         payload["notify_phone"] = notify_phone
-    if body.cf1:
-        payload["cf1"] = body.cf1
+
+    # backURL
     if back_url:
         payload["backURL"] = back_url
 
-
     logger.info("PLNK 4.12 payload=%s", payload)
+    
+    print("==== PLNK 4.12 OUTGOING PAYLOAD ====")
+    try:
+        print(json.dumps(payload, ensure_ascii=False))
+    except Exception:
+        print(payload)
+    print("====================================")
+
 
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
@@ -439,6 +500,8 @@ async def plnk_create_invoice(
         await idem_set(x_idempotency_key, resp)
 
     return resp
+
+
 
 
 
