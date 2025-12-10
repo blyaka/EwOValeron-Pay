@@ -119,7 +119,7 @@ def _plnk_invoice_signature(
     amountcurr: str,
     paysys: str,
     number: str,
-    description: str,   # РОВНО в том виде, как уходит в payload
+    description: str,   # РОВНО в том виде, как уходит в payload (без quote)
     validity: Optional[str],
     first_name: Optional[str],
     last_name: Optional[str],
@@ -136,7 +136,7 @@ def _plnk_invoice_signature(
     account: str,
 ) -> str:
     """
-    Правила из доки/саппорта:
+    Подпись для 4.12 по правилам саппорта:
 
     base = amount:amountcurr:paysys:number:description:validity:
             first_name:last_name:middle_name:
@@ -147,14 +147,14 @@ def _plnk_invoice_signature(
             backURL:
             account:secret1:secret2
 
-    - last_name/middle_name добавляем только если реально есть
-    - cf1/cf2/cf3 добавляем блоком, если хотя бы один не пустой;
-      при этом cf2 и cf3 могут быть пустыми строками
-    - email/notify_email добавляем блоком только если есть email
-    - phone/notify_phone добавляем блоком только если есть phone
-    - paytoken/backURL добавляем только если непустые
+    - last_name/middle_name — только если реально есть
+    - cf1/cf2/cf3 — блоком, если хотя бы один непустой;
+      cf2 и cf3 могут быть пустыми строками
+    - email/notify_email — блоком только если есть email
+    - phone/notify_phone — блоком только если есть phone
+    - paytoken/backURL — только если непустые
     - в конце ВСЕГДА account, secret1, secret2
-    - подпись = md5(base) или sha256(base) БЕЗ HMAC
+    - АЛГОРИТМ: ЧИСТЫЙ MD5(base), без HMAC, без SHA256
     """
 
     parts: list[str] = []
@@ -212,14 +212,11 @@ def _plnk_invoice_signature(
     print("\n" + "=" * 80)
     print("PLNK 4.12 SIGNATURE DEBUG")
     print("BASE:", base)
-    print("HASH ALG   :", PLNK_HASH_ALG)
+    print("HASH ALG   : md5  (force)")
     print("=" * 80 + "\n")
 
-    # ЧИСТЫЙ ХЕШ, БЕЗ HMAC
-    if PLNK_HASH_ALG == "sha256":
-        sig = hashlib.sha256(base.encode("utf-8")).hexdigest()
-    else:
-        sig = hashlib.md5(base.encode("utf-8")).hexdigest()
+    # ВАЖНО: всегда MD5, без HMAC
+    sig = hashlib.md5(base.encode("utf-8")).hexdigest()
 
     print("PLNK 4.12 SIGNATURE HEX:", sig.upper())
     print("=" * 80 + "\n")
@@ -336,13 +333,11 @@ async def plnk_create_invoice(
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    # описание минимум 6 символов, URL-encoded
+    # описание минимум 6 символов, БЕЗ url-encode — строка в чистом виде
     desc_raw = body.description or f"Payment {number} {amount_str} {amountcurr}"
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + "      ")[:6]
-
-    # ВАЖНО: URL-кодируем и ЭТО ЖЕ значение идёт и в подпись, и в payload
-    description_encoded = quote(desc_raw, safe="")
+    description = desc_raw  # 👈 без quote
 
     # validity
     if body.validity_minutes:
@@ -357,7 +352,7 @@ async def plnk_create_invoice(
     middle_name = None
 
     email = body.email or None
-    phone = body.phone or None
+    phone = body.phone or None   # сюда уже прилетает "7977..." без плюса
 
     notify_email = "1" if email else None
     notify_phone = "1" if phone else None
@@ -370,7 +365,7 @@ async def plnk_create_invoice(
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
-        description=description_encoded,
+        description=description,      # 👈 plain
         validity=validity_str,
         first_name=first_name,
         last_name=last_name,
@@ -392,7 +387,7 @@ async def plnk_create_invoice(
         "amountcurr": amountcurr,
         "paysys": paysys,
         "number": number,
-        "description": description_encoded,
+        "description": description,   # 👈 тоже plain
         "account": PLNK_ACCOUNT,
         "signature": sig,
     }
@@ -493,7 +488,7 @@ async def plnk_internal_create_link(
     # 👇 вот тут подставляем заглушку, если с фронта пришла пустота
     phone = body.phone.strip() if body.phone else None
     if not phone:
-        phone = "+79775737721"  # временная заглушка; потом поменяем на реальный номер
+        phone = "79775737721"  # временная заглушка; потом поменяем на реальный номер
 
     if x_idempotency_key:
         cached = await idem_get(x_idempotency_key)
