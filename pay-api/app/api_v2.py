@@ -136,9 +136,13 @@ def _plnk_invoice_signature(
     account: str,
 ) -> str:
     """
-    Цитата из саппорта:
-    - пустые last_name/middle_name НЕ надо учитывать, если их нет в запросе
-    - пустые значения как "" нужны ТОЛЬКО для cf2:cf3
+    Правила из саппорта:
+    - last_name / middle_name участвуют ТОЛЬКО если реально есть в запросе
+    - cf1/cf2/cf3 идут блоком, если хоть один не пустой; пустые нужны только для cf2, cf3
+    - email/notify_email и phone/notify_phone участвуют блоками, только если есть email/phone
+    - paytoken и backURL участвуют только если непустые
+    - В КОНЦЕ ВСЕГДА account, secret1, secret2
+    - Хеш — md5(base) или sha256(base), НЕ HMAC
     """
 
     parts: list[str] = []
@@ -150,12 +154,11 @@ def _plnk_invoice_signature(
     parts.append(number)
     parts.append(description)
 
-    # validity — только если реально отправляем
+    # validity — только если реально есть
     if validity:
         parts.append(validity)
 
-    # FIO:
-    # если в запросе шлём только first_name — в подписи тоже только он.
+    # FIO
     if first_name:
         parts.append(first_name)
     if last_name:
@@ -163,32 +166,31 @@ def _plnk_invoice_signature(
     if middle_name:
         parts.append(middle_name)
 
-    # cf1..cf3 — блоком, только если хоть один не пустой.
-    # Требование саппорта: пустые значения нужны только для cf2 и cf3.
+    # cf1..cf3 — блоком, только если хоть один непустой
     if any([cf1, cf2, cf3]):
-        parts.append(cf1 or "")  # cf1 всегда на своём месте
-        parts.append(cf2 or "")  # cf2 может быть ""
-        parts.append(cf3 or "")  # cf3 может быть ""
+        parts.append(cf1 or "")
+        parts.append(cf2 or "")
+        parts.append(cf3 or "")
 
-    # email / notify_email — блок, только если email не пустой.
+    # email / notify_email
     if email:
         parts.append(email)
         parts.append(notify_email or "")
 
-    # phone / notify_phone — блок, только если phone не пустой.
+    # phone / notify_phone
     if phone:
         parts.append(phone)
         parts.append(notify_phone or "")
 
-    # paytoken — только если есть
+    # paytoken
     if paytoken:
         parts.append(paytoken)
 
-    # backURL — только если есть
+    # backURL
     if backURL:
         parts.append(backURL)
 
-    # account + секреты — всегда в конце
+    # account + секреты
     parts.append(account)
     parts.append(PLNK_SECRET1 or "")
     parts.append(PLNK_SECRET2 or "")
@@ -199,13 +201,11 @@ def _plnk_invoice_signature(
     print("PLNK 4.12 SIGNATURE DEBUG")
     print("BASE:", base)
     print("HASH ALG   :", PLNK_HASH_ALG)
-    print("KEY (secret1+secret2):", (PLNK_SECRET1 or "") + (PLNK_SECRET2 or ""))
     print("=" * 80 + "\n")
 
-    key = ((PLNK_SECRET1 or "") + (PLNK_SECRET2 or "")).encode("utf-8")
-
+    # ВАЖНО: тут больше НЕТ HMAC, только чистый хеш строки base
     if PLNK_HASH_ALG == "sha256":
-        sig = hmac.new(key, base.encode("utf-8"), hashlib.sha256).hexdigest()
+        sig = hashlib.sha256(base.encode("utf-8")).hexdigest()
     else:
         sig = hashlib.md5(base.encode("utf-8")).hexdigest()
 
