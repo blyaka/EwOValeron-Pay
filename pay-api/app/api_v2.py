@@ -119,7 +119,7 @@ def _plnk_invoice_signature(
     amountcurr: str,
     paysys: str,
     number: str,
-    description: str,   # РОВНО в том виде, как уходит в payload (без quote)
+    description: str,
     validity: Optional[str],
     first_name: Optional[str],
     last_name: Optional[str],
@@ -134,7 +134,7 @@ def _plnk_invoice_signature(
     paytoken: Optional[str],
     backURL: Optional[str],
     account: str,
-) -> str:
+) -> str
     """
     Подпись для 4.12 по правилам саппорта:
 
@@ -333,11 +333,11 @@ async def plnk_create_invoice(
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    # описание минимум 6 символов, БЕЗ url-encode — строка в чистом виде
+    # описание минимум 6 символов, затем кодируем в URL-encoded строку (как требует дока)
     desc_raw = body.description or f"Payment {number} {amount_str} {amountcurr}"
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + "      ")[:6]
-    description = desc_raw  # 👈 без quote
+    description = quote(desc_raw, safe="")  # 👈 теперь всегда URL-encoded
 
     # validity
     if body.validity_minutes:
@@ -360,12 +360,13 @@ async def plnk_create_invoice(
 
     back_url = PLNK_BACKURL or None
 
+    # 🔐 description в подпись передаём в том же виде, что и в payload (URL-encoded)
     sig = _plnk_invoice_signature(
         amount=amount_str,
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
-        description=description,      # 👈 plain
+        description=description,
         validity=validity_str,
         first_name=first_name,
         last_name=last_name,
@@ -387,7 +388,7 @@ async def plnk_create_invoice(
         "amountcurr": amountcurr,
         "paysys": paysys,
         "number": number,
-        "description": description,   # 👈 тоже plain
+        "description": description,   # 👈 URL-encoded
         "account": PLNK_ACCOUNT,
         "signature": sig,
     }
