@@ -134,7 +134,7 @@ def _plnk_invoice_signature(
     paytoken: Optional[str],
     backURL: Optional[str],
     account: str,
-) -> str
+) -> str:
     """
     Подпись для 4.12 по правилам саппорта:
 
