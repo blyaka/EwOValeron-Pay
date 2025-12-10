@@ -134,59 +134,37 @@ def _plnk_invoice_signature(
     account: str,
 ) -> str:
     """
-    Подпись строго по 4.12:
-    amount, amountcurr, paysys, number, description, validity,
-    first_name, last_name, middle_name,
-    cf1, cf2, cf3 (блоком),
-    email, notify_email, phone, notify_phone,
-    paytoken, backURL,
-    account, secret1, secret2
+    УПРОЩЁННЫЙ вариант строго по тому, что прислали в письме:
+
+    4.12:
+      amount, amountcurr, paysys, number, description, first_name, account, cf1, [secret1], [secret2]
+
+    - validity НЕ включаем в подпись
+    - email / phone НЕ включаем в подпись
+    - cf2 / cf3 тоже мимо для нашего кейса
     """
 
     parts: list[str] = []
 
-    def add(v: Optional[str]) -> None:
-        parts.append("" if v is None else str(v))
+    # БАЗОВЫЕ — строго в таком порядке
+    parts.append(amount)         # '60.25'
+    parts.append(amountcurr)     # 'RUB'
+    parts.append(paysys)         # 'EXT' / 'MBC'
+    parts.append(number)         # '123456789'
+    parts.append(description)    # URL-encoded строка
 
-    # базовые — ВСЕГДА участвуют
-    add(amount)
-    add(amountcurr)
-    add(paysys)
-    add(number)
-    add(description)
+    # first_name — в примере идёт сразу после description
+    if first_name:
+        parts.append(first_name)
 
-    # validity — всегда в сигнатуре, даже если не передаём (пустая строка)
-    add(validity or "")
+    # account — всегда
+    parts.append(account)
 
-    # FIO — три плейсхолдера всегда
-    add(first_name or "")
-    add(last_name or "")
-    add(middle_name or "")
+    # cf1 — если есть (userid:123…)
+    if cf1:
+        parts.append(cf1)
 
-    # cf1..cf3 — блоком: либо все три, либо вообще ничего
-    cf_block = [cf1, cf2, cf3]
-    if any(v for v in cf_block):
-        for v in cf_block:
-            add(v or "")
-
-    # email / notify_email — либо пара, либо ничего (спец-правило из доки)
-    if email:
-        add(email)
-        add(notify_email or "")
-
-    # phone / notify_phone — либо пара, либо ничего
-    if phone:
-        add(phone)
-        add(notify_phone or "")
-
-    # paytoken / backURL — только если не пустые
-    if paytoken:
-        add(paytoken)
-    if backURL:
-        add(backURL)
-
-    # account + секреты
-    add(account)
+    # СЕКРЕТЫ — в конце
     parts.append(PLNK_SECRET1 or "")
     parts.append(PLNK_SECRET2 or "")
 
@@ -199,6 +177,7 @@ def _plnk_invoice_signature(
         sig = hashlib.md5(base.encode("utf-8")).hexdigest()
 
     return sig.upper()
+
 
 
 
@@ -378,7 +357,8 @@ async def plnk_create_invoice(
     if body.cf1:
         payload["cf1"] = body.cf1
 
-    logger.info("PLNK invoice: number=%s amount=%s %s", number, amount_str, amountcurr)
+    logger.info("PLNK 4.12 payload=%s", payload)
+    print("payload - ", payload)
 
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
