@@ -119,7 +119,7 @@ def _plnk_invoice_signature(
     amountcurr: str,
     paysys: str,
     number: str,
-    description: str,   # УЖЕ URL-encoded
+    description: str,   # уже в том виде, как реально отправляем в запросе
     validity: Optional[str],
     first_name: Optional[str],
     last_name: Optional[str],
@@ -137,40 +137,44 @@ def _plnk_invoice_signature(
 ) -> str:
     parts: list[str] = []
 
-    # базовые параметры
+    # amount, amountcurr, paysys, number, description — всегда
     parts.append(amount)
     parts.append(amountcurr)
     parts.append(paysys)
     parts.append(number)
     parts.append(description)
 
-    # validity — ВСЕГДА слот, даже если пустой
-    parts.append(validity or "")
+    # validity — дока не оговаривает исключение при пустоте,
+    # поэтому: если есть значение — добавляем, если нет — просто пропускаем
+    if validity:
+        parts.append(validity)
 
-    # FIO — всегда три слота
+    # FIO — три слота всегда
     parts.append(first_name or "")
     parts.append(last_name or "")
     parts.append(middle_name or "")
 
-    # cf1..cf3 — блоком, только если хотя бы один непустой
+    # cf1..cf3 — добавляем блоком, только если хотя бы один не пустой
     if any([cf1, cf2, cf3]):
         parts.append(cf1 or "")
         parts.append(cf2 or "")
         parts.append(cf3 or "")
 
-    # email / notify_email — ВСЕГДА два слота
-    parts.append(email or "")
-    parts.append(notify_email or "")
+    # email / notify_email — только если email не пустой
+    if email:
+        parts.append(email)
+        parts.append(notify_email or "")
 
-    # phone / notify_phone — ВСЕГДА два слота
-    parts.append(phone or "")
-    parts.append(notify_phone or "")
+    # phone / notify_phone — только если phone не пустой
+    if phone:
+        parts.append(phone)
+        parts.append(notify_phone or "")
 
-    # paytoken — только если есть
+    # paytoken — только если непустой
     if paytoken:
         parts.append(paytoken)
 
-    # backURL — только если есть
+    # backURL — только если непустой
     if backURL:
         parts.append(backURL)
 
@@ -181,14 +185,14 @@ def _plnk_invoice_signature(
 
     base = ":".join(parts)
 
-    key = ((PLNK_SECRET1 or "") + (PLNK_SECRET2 or "")).encode("utf-8")
-
     print("\n" + "=" * 80)
     print("PLNK 4.12 SIGNATURE DEBUG")
     print("BASE:", base)
     print("HASH ALG   :", PLNK_HASH_ALG)
     print("KEY (secret1+secret2):", (PLNK_SECRET1 or "") + (PLNK_SECRET2 or ""))
     print("=" * 80 + "\n")
+
+    key = ((PLNK_SECRET1 or "") + (PLNK_SECRET2 or "")).encode("utf-8")
 
     if PLNK_HASH_ALG == "sha256":
         sig = hmac.new(key, base.encode("utf-8"), hashlib.sha256).hexdigest()
@@ -199,7 +203,6 @@ def _plnk_invoice_signature(
     print("=" * 80 + "\n")
 
     return sig.upper()
-
 
 
 
@@ -335,6 +338,7 @@ async def plnk_create_invoice(
 
     notify_email = "1" if email else None
     notify_phone = "1" if phone else None
+    paytoken = None
 
     # backURL — из конфига, если есть
     back_url = PLNK_BACKURL or None
