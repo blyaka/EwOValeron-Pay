@@ -15,7 +15,6 @@ import redis.asyncio as redis
 import re
 
 from datetime import datetime, timedelta
-from urllib.parse import quote
 
 from fastapi import APIRouter, Request, HTTPException, Header
 from fastapi.responses import PlainTextResponse, RedirectResponse
@@ -93,7 +92,7 @@ async def plnk_link_set(token: str, plnk_url: str, ttl_seconds: int):
     await redis_cli.setex(f"plnk:paylink:{token}", ttl_seconds, json.dumps(rec, ensure_ascii=False))
 
 
-# --- Публикация событий в RabbitMQ (та же очередь, что и у FK) ---
+# --- Публикация событий в RabbitMQ ---
 async def _publish_payment_event(event: dict):
     try:
         conn = await aio_pika.connect_robust(RABBIT_URL)
@@ -111,6 +110,8 @@ async def _publish_payment_event(event: dict):
         logger.error("RabbitMQ error: %s", e)
 
 
+# ========= Подписи =========
+
 def _plnk_invoice_signature(
     *,
     amount: str,
@@ -118,65 +119,50 @@ def _plnk_invoice_signature(
     paysys: str,
     number: str,
     description: str,
-    validity: Optional[str],
-    first_name: Optional[str],
-    last_name: Optional[str],
-    middle_name: Optional[str],
-    cf1: Optional[str],
-    cf2: Optional[str],
-    cf3: Optional[str],
-    email: Optional[str],
-    notify_email: Optional[str],
-    phone: Optional[str],
-    notify_phone: Optional[str],
-    paytoken: Optional[str],
-    backURL: Optional[str],
     account: str,
+    cf1: Optional[str] = None,
 ) -> str:
     """
-    4.12 по письму:
-      amount, amountcurr, paysys, number, description, first_name, account, cf1, secret1, secret2
+    УПРОЩЁННЫЙ И СТРОГО ФИКСИРОВАННЫЙ ВАРИАНТ ПОДПИСИ ДЛЯ 4.12
+    По сути — то, что они прислали в примере и что реалистично встречается у эквайров:
 
-    validity / email / phone / cf2 / cf3 в подпись не идём.
+    base = amount:amountcurr:paysys:number:description:account[:cf1]:secret1:secret2
+
+    - description: ровно та строка, которую отправляем в запросе (у тебя сейчас это уже URL-encoded)
+    - cf1: включаем в подпись только если реально отправляем cf1 в запросе
+    - НИЧЕГО лишнего (ни email, ни phone, ни validity, ни first_name) в подпись не пихаем
     """
 
-    parts: list[str] = []
+    parts = [
+        amount,        # '218.00'
+        amountcurr,    # 'RUB'
+        paysys,        # 'MBC' / 'EXT'
+        number,        # 'plnk-JIG-2025...'
+        description,   # 'Order%20JIG-20251210-11' ИЛИ не-энкодед, но строго то же самое, что в payload
+        account,       # 'ACC1023388'
+    ]
 
-    # базовые поля
-    parts.append(amount)         # '60.25'
-    parts.append(amountcurr)     # 'RUB'
-    parts.append(paysys)         # 'EXT' / 'MBC'
-    parts.append(number)         # '123456789'
-    parts.append(description)    # уже URL-encoded строка
+    if cf1:
+        parts.append(cf1)
 
-    # first_name — всегда слот, даже если пустой
-    parts.append(first_name or "")
-
-    # account — всегда
-    parts.append(account)
-
-    # cf1 — всегда слот, даже если пустой
-    parts.append(cf1 or "")
-
-    # секреты
     parts.append(PLNK_SECRET1 or "")
     parts.append(PLNK_SECRET2 or "")
 
     base = ":".join(parts)
 
+    # ЛОГИРУЕМ базовую строку, чтобы можно было отправить их техам
+    logger.info("PLNK 4.12 base string for signature: %s", base)
+
     if PLNK_HASH_ALG == "sha256":
         key = ((PLNK_SECRET1 or "") + (PLNK_SECRET2 or "")).encode("utf-8")
         sig = hmac.new(key, base.encode("utf-8"), hashlib.sha256).hexdigest()
     else:
+        # ОЧЕНЬ ВАЖНО: оставляем в нижнем регистре, md5().hexdigest() по дефолту lower-case
         sig = hashlib.md5(base.encode("utf-8")).hexdigest()
 
-    return sig.upper()
+    # НЕ upper(), чтобы не ловить кейс-сенситивную хуёвину
+    return sig
 
-
-
-
-
-# --- Подпись invoice (метод 4.1.1) ---
 
 def _plnk_start_signature(
     *,
@@ -193,46 +179,43 @@ def _plnk_start_signature(
     cf2: Optional[str],
     cf3: Optional[str],
 ):
-    parts = []
+    """
+    Подпись для 4.1.1 по доке:
+    base = amount:amountcurr:currency:number:description:trtype:account[:paytoken][:backURL][:cf1][:cf2][:cf3]:secret1:secret2
+    """
 
-    def add(v):
-        parts.append("" if v is None else str(v))
-
-    # порядок строго как в доке 4.1.1
-    add(amount)
-    add(amountcurr)
-    add(currency)
-    add(number)
-    add(description)
-    add(trtype)
-    add(account)
+    parts = [
+        amount,
+        amountcurr,
+        currency,
+        number,
+        description,
+        trtype,
+        account,
+    ]
 
     if paytoken:
-        add(paytoken)
+        parts.append(paytoken)
 
     if backURL:
-        add(backURL)
+        parts.append(backURL)
 
-    # cf1..cf3 — только если есть хоть один
     if any([cf1, cf2, cf3]):
-        add(cf1 or "")
-        add(cf2 or "")
-        add(cf3 or "")
+        parts.append(cf1 or "")
+        parts.append(cf2 or "")
+        parts.append(cf3 or "")
 
     parts.append(PLNK_SECRET1 or "")
     parts.append(PLNK_SECRET2 or "")
 
     base = ":".join(parts)
+    logger.info("PLNK 4.1.1 base string for signature: %s", base)
 
     if PLNK_HASH_ALG == "sha256":
         key = ((PLNK_SECRET1 or "") + (PLNK_SECRET2 or "")).encode()
-        return hmac.new(key, base.encode(), hashlib.sha256).hexdigest().upper()
+        return hmac.new(key, base.encode(), hashlib.sha256).hexdigest()
 
-    return hashlib.md5(base.encode()).hexdigest().upper()
-
-
-
-
+    return hashlib.md5(base.encode()).hexdigest()
 
 
 # ========= Модели =========
@@ -242,8 +225,8 @@ class PlnkInvoiceCreate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     description: Optional[str] = None
-    payment_id: Optional[str] = None  # наш number
-    cf1: Optional[str] = None         # user id: 'userid:123...'
+    payment_id: Optional[str] = None
+    cf1: Optional[str] = None
     first_name: Optional[str] = None
     validity_minutes: Optional[int] = None
 
@@ -284,21 +267,21 @@ async def plnk_create_invoice(
             )
             return cached
 
-    number = body.payment_id or f"plnk-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
+    number = body.payment_id or f"plnk-{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
     amount_str = f"{body.amount:.2f}"
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    # Описание минимум 6 символов и сразу URL-encoded
+    # ВАЖНО: description ДОЛЖЕН быть ровно таким же и в payload, и в подписи.
+    # Сейчас у тебя в проде уже URL-encoded строка, судя по логам. Делаем так же.
     desc_raw = body.description or f"Payment {number} {amount_str} {amountcurr}"
     if len(desc_raw) < 6:
-        desc_raw = (desc_raw + " " * 6)[:6]
-    description = quote(desc_raw, safe="")  # ЭТУ строку подписываем и отправляем
+        desc_raw = (desc_raw + "      ")[:6]
 
-    validity_str: Optional[str] = None
-    if body.validity_minutes:
-        dt = datetime.utcnow() + timedelta(minutes=body.validity_minutes)
-        validity_str = dt.replace(microsecond=0).isoformat() + "+00:00"
+    # Если хочешь — можно закодировать, но и в подпись пойдёт уже кодированная строка
+    from urllib.parse import quote as _quote
+
+    description = _quote(desc_raw, safe="")
 
     email = body.email or None
     phone = body.phone or None
@@ -306,26 +289,14 @@ async def plnk_create_invoice(
     notify_email = "1" if email else None
     notify_phone = "1" if phone else None
 
-    sig = _plnk_invoice_signature(
+    signature = _plnk_invoice_signature(
         amount=amount_str,
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
         description=description,
-        validity=validity_str,
-        first_name=body.first_name,
-        last_name=None,
-        middle_name=None,
-        cf1=body.cf1,
-        cf2=None,
-        cf3=None,
-        email=email,
-        notify_email=notify_email,
-        phone=phone,
-        notify_phone=notify_phone,
-        paytoken=None,
-        backURL=None,
         account=PLNK_ACCOUNT,
+        cf1=body.cf1,
     )
 
     payload: Dict[str, Any] = {
@@ -333,13 +304,12 @@ async def plnk_create_invoice(
         "amountcurr": amountcurr,
         "paysys": paysys,
         "number": number,
-        "description": description,   # та же строка, что и в подписи
+        "description": description,
         "account": PLNK_ACCOUNT,
-        "signature": sig,
+        "signature": signature,
     }
 
-    if validity_str:
-        payload["validity"] = validity_str
+    # Остальные поля докидываем, НО в подпись они не входят
     if body.first_name:
         payload["first_name"] = body.first_name
     if email:
@@ -352,7 +322,6 @@ async def plnk_create_invoice(
         payload["cf1"] = body.cf1
 
     logger.info("PLNK 4.12 payload=%s", payload)
-    print("payload - ", payload)
 
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
@@ -398,7 +367,6 @@ async def plnk_create_invoice(
     return resp
 
 
-
 # ========= 2) Прокладочная ссылка (аналог /internal/create_link) =========
 
 @router.post("/internal/create_link")
@@ -427,7 +395,6 @@ async def plnk_internal_create_link(
                     "public_url": f"https://pay.evpayservice.com/v2/pay/{token}",
                     "token": token,
                     "payment_id": cached.get("payment_id"),
-                    # для совместимости с старым сервисом:
                     "fk_url": plnk_url,
                     "plnk_url": plnk_url,
                     "trans_id": cached.get("trans_id"),
@@ -463,7 +430,6 @@ async def plnk_internal_create_link(
         "public_url": public_url,
         "token": token,
         "payment_id": created["payment_id"],
-        # совместимость с существующей схемой (fk_url):
         "fk_url": plnk_url,
         "plnk_url": plnk_url,
         "trans_id": created["trans_id"],
@@ -489,10 +455,6 @@ async def plnk_pay_redirect(token: str):
 
 @router.post("/status", response_class=PlainTextResponse)
 async def plnk_status(request: Request):
-    """
-    Обработка статуса оплаты (statusURL).
-    Ждём форму с полями: status, amount, amountcurr, account, number, transID, errorcode, errortext, ...
-    """
     form = await request.form()
     payload = {k: v for k, v in form.items()}
 
@@ -534,21 +496,18 @@ async def plnk_status(request: Request):
     return PlainTextResponse("OK")
 
 
+# ========= 5) 4.1.1 (create_start_payment + прокладка) =========
 
+class PlnkStartCreate(BaseModel):
+    amount: float
+    description: Optional[str] = None
+    payment_id: Optional[str] = None
+    cf1: Optional[str] = None
 
-
-
-
-
-
-
-
-
-# Создание ссылки 4.1.1
 
 @router.post("/create_start_payment")
 async def plnk_create_start_payment(
-    body: PlnkInvoiceCreate,  # можно переиспользовать ту же модель
+    body: PlnkStartCreate,
     request: Request,
     x_internal_token: Optional[str] = Header(None),
 ):
@@ -558,16 +517,18 @@ async def plnk_create_start_payment(
     if not PLNK_ACCOUNT or not PLNK_SECRET1 or not PLNK_SECRET2:
         raise HTTPException(status_code=500, detail="PLNK_* secrets not configured")
 
-    number = body.payment_id or f"plnk-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
+    number = body.payment_id or f"plnk-{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
     amount = f"{body.amount:.2f}"
     amountcurr = PLNK_AMOUNTCURR.upper()
-    currency = PLNK_PAYSYS.upper()   # EXT / MBC
+    currency = PLNK_PAYSYS.upper()
     trtype = "1"
+
+    from urllib.parse import quote as _quote
 
     desc_raw = body.description or f"Payment {number} {amount} {amountcurr}"
     if len(desc_raw) < 6:
-        desc_raw = (desc_raw + " " * 6)[:6]
-    description = quote(desc_raw, safe="")
+        desc_raw = (desc_raw + "      ")[:6]
+    description = _quote(desc_raw, safe="")
 
     sig = _plnk_start_signature(
         amount=amount,
@@ -594,6 +555,8 @@ async def plnk_create_start_payment(
         "trtype": trtype,
         "signature": sig,
     }
+    if body.cf1:
+        payload["cf1"] = body.cf1
 
     headers = {
         "User-Agent": request.headers.get("user-agent", "Mozilla/5.0"),
@@ -632,30 +595,22 @@ async def plnk_create_start_payment(
     }
 
 
-
-
-# Прокладка 4.1.1
-
 @router.post("/internal/create_start_link")
 async def plnk_internal_create_start_link(
     body: PlnkInternalCreateLink,
     request: Request,
     x_internal_token: Optional[str] = Header(None),
 ):
-    # TTL такая же логика
     ttl_min = body.ttl_minutes if body.ttl_minutes else PAY_LINK_TTL_HOURS * 60
     ttl_sec = ttl_min * 60
     exp_iso = (datetime.utcnow() + timedelta(seconds=ttl_sec)).isoformat() + "Z"
 
     created = await plnk_create_start_payment(
-        body=PlnkInvoiceCreate(
+        body=PlnkStartCreate(
             amount=body.amount,
-            email=body.email,
-            phone=body.phone,
             description=body.description,
             payment_id=body.payment_id,
             cf1=body.cf1,
-            first_name=body.first_name,
         ),
         request=request,
         x_internal_token=x_internal_token,
@@ -671,10 +626,8 @@ async def plnk_internal_create_start_link(
         "token": token,
         "payment_id": created["payment_id"],
         "plnk_url": pay_url,
-        "fk_url": pay_url,       # для совместимости!
+        "fk_url": pay_url,
         "expires_at": exp_iso,
         "provider": "paymentlnk",
         "mode": "4.1.1",
     }
-
-
