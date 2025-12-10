@@ -135,24 +135,68 @@ def _plnk_invoice_signature(
     backURL: Optional[str],
     account: str,
 ) -> str:
-    # ВАЖНО: для 4.12 используем только базовые поля:
-    # amount:amountcurr:paysys:number:description:account:secret1:secret2
+    """
+    Цитата из саппорта:
+    - пустые last_name/middle_name НЕ надо учитывать, если их нет в запросе
+    - пустые значения как "" нужны ТОЛЬКО для cf2:cf3
+    """
 
-    parts: list[str] = [
-        amount,
-        amountcurr,
-        paysys,
-        number,
-        description,
-        account,
-        PLNK_SECRET1 or "",
-        PLNK_SECRET2 or "",
-    ]
+    parts: list[str] = []
+
+    # базовые поля — всегда
+    parts.append(amount)
+    parts.append(amountcurr)
+    parts.append(paysys)
+    parts.append(number)
+    parts.append(description)
+
+    # validity — только если реально отправляем
+    if validity:
+        parts.append(validity)
+
+    # FIO:
+    # если в запросе шлём только first_name — в подписи тоже только он.
+    if first_name:
+        parts.append(first_name)
+    if last_name:
+        parts.append(last_name)
+    if middle_name:
+        parts.append(middle_name)
+
+    # cf1..cf3 — блоком, только если хоть один не пустой.
+    # Требование саппорта: пустые значения нужны только для cf2 и cf3.
+    if any([cf1, cf2, cf3]):
+        parts.append(cf1 or "")  # cf1 всегда на своём месте
+        parts.append(cf2 or "")  # cf2 может быть ""
+        parts.append(cf3 or "")  # cf3 может быть ""
+
+    # email / notify_email — блок, только если email не пустой.
+    if email:
+        parts.append(email)
+        parts.append(notify_email or "")
+
+    # phone / notify_phone — блок, только если phone не пустой.
+    if phone:
+        parts.append(phone)
+        parts.append(notify_phone or "")
+
+    # paytoken — только если есть
+    if paytoken:
+        parts.append(paytoken)
+
+    # backURL — только если есть
+    if backURL:
+        parts.append(backURL)
+
+    # account + секреты — всегда в конце
+    parts.append(account)
+    parts.append(PLNK_SECRET1 or "")
+    parts.append(PLNK_SECRET2 or "")
 
     base = ":".join(parts)
 
     print("\n" + "=" * 80)
-    print("PLNK 4.12 SIGNATURE DEBUG (MINIMAL)")
+    print("PLNK 4.12 SIGNATURE DEBUG")
     print("BASE:", base)
     print("HASH ALG   :", PLNK_HASH_ALG)
     print("KEY (secret1+secret2):", (PLNK_SECRET1 or "") + (PLNK_SECRET2 or ""))
@@ -169,7 +213,6 @@ def _plnk_invoice_signature(
     print("=" * 80 + "\n")
 
     return sig.upper()
-
 
 
 
