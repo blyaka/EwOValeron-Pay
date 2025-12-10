@@ -316,11 +316,11 @@ async def plnk_create_invoice(
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    # описание минимум 6 символов, URL-encoded
+    # Описание минимум 6 символов — БЕЗ ручного urlencode
     desc_raw = body.description or f"Payment {number} {amount_str} {amountcurr}"
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + " " * 6)[:6]
-    description_encoded = quote(desc_raw, safe="")
+    description = desc_raw  # <- ВОТ ЭТО мы теперь и подписываем и отправляем
 
     validity_str: Optional[str] = None
     if body.validity_minutes:
@@ -338,7 +338,7 @@ async def plnk_create_invoice(
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
-        description=description_encoded,
+        description=description,
         validity=validity_str,
         first_name=body.first_name,
         last_name=None,
@@ -360,7 +360,7 @@ async def plnk_create_invoice(
         "amountcurr": amountcurr,
         "paysys": paysys,
         "number": number,
-        "description": description_encoded,
+        "description": description,
         "account": PLNK_ACCOUNT,
         "signature": sig,
     }
@@ -422,6 +422,7 @@ async def plnk_create_invoice(
         await idem_set(x_idempotency_key, resp)
 
     return resp
+
 
 
 # ========= 2) Прокладочная ссылка (аналог /internal/create_link) =========
