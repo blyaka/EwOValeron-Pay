@@ -312,59 +312,40 @@ async def plnk_create_invoice(
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    # description: минимум 6 символов + URL-encoded
+    # description: минимум 6 символов, и ВНУТРИ значения должен быть URL-encoded текст
     desc_raw = (body.description or f"Order {number}").strip()
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + "      ")[:6]
-    description = quote(desc_raw, safe="")
+    desc_inner = quote(desc_raw, safe="")  # типа Order%20JIG-...
 
-    # validity: если не передать в payload — можно, но тогда в подписи будет пустой слот.
-    # Ты сейчас передаёшь validity — ок, делаем как надо и стабильно.
     now = datetime.now(MSK).replace(microsecond=0)
     dt = now + (timedelta(minutes=body.validity_minutes) if body.validity_minutes else timedelta(hours=24))
-    validity_str = dt.isoformat()  # например 2025-12-13T15:41:42+03:00
+    validity_str = dt.isoformat()
 
-    # cf — делаем как в их примере:
-    # они в переписке сказали cf1 => 'userid:123...'
-    # а в примере строки подписи показали userid в cf1 и число в cf2
-    # чтобы не гадать: шлём ОДНИМ полем cf1="userid:<id>" (и не используем cf2/cf3)
-    # но тогда cf2/cf3 не должны участвовать. Значит передаём только cf1 (cf2/cf3 None).
+    # cf1 как они просили: userid:<id>
     user_id = uuid.uuid4().hex
     cf1 = f"userid:{user_id}"
-    cf2 = None
-    cf3 = None
 
-    # email/phone не шлём вообще
-    email = None
-    phone = None
-    notify_email = None
-    notify_phone = None
-
-    # backURL — без trailing slash, как у тебя
     back_url = (PLNK_BACKURL or "https://evpayservice.com").strip().rstrip("/")
 
-    # ФИО не передаём в payload, но в подписи должны быть СЛОТЫ => передаём None
-    first_name = None
-    last_name = None
-    middle_name = None
-
+    # ФИО в payload не шлём, но слоты в подписи должны быть
     sig = _plnk_invoice_signature(
         amount=amount_str,
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
-        description=description,
+        description=desc_inner,     # ВАЖНО: в подписи именно inner-encoded
         validity=validity_str,
-        first_name=first_name,
-        last_name=last_name,
-        middle_name=middle_name,
+        first_name=None,
+        last_name=None,
+        middle_name=None,
         cf1=cf1,
-        cf2=cf2,
-        cf3=cf3,
-        email=email,
-        notify_email=notify_email,
-        phone=phone,
-        notify_phone=notify_phone,
+        cf2=None,
+        cf3=None,
+        email=None,
+        notify_email=None,
+        phone=None,
+        notify_phone=None,
         backURL=back_url,
         account=PLNK_ACCOUNT,
     )
@@ -374,7 +355,7 @@ async def plnk_create_invoice(
         "amountcurr": amountcurr,
         "paysys": paysys,
         "number": number,
-        "description": description,
+        "description": desc_inner,   # ВАЖНО: в payload тоже inner-encoded
         "account": PLNK_ACCOUNT,
         "signature": sig,
         "backURL": back_url,
@@ -382,13 +363,29 @@ async def plnk_create_invoice(
         "cf1": cf1,
     }
 
-    print("==== PLNK 4.12 PAYLOAD ====")
+    print("==== PLNK 4.12 PAYLOAD (logical) ====")
     print(json.dumps(payload, ensure_ascii=False))
-    print("===========================")
+    print("=====================================")
+
+    # ВАЖНО: формируем form-body вручную, чтобы гарантировать,
+    # что '%' останется как '%25' на проводе, и у провайдера после 1 декода будет '%'
+    form_body = "&".join(
+        f"{quote(str(k), safe='')}={quote(str(v), safe='')}"
+        for k, v in payload.items()
+        if v is not None
+    )
+
+    print("==== PLNK 4.12 BODY (wire) ====")
+    print(form_body)
+    print("================================")
 
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            r = await client.post(PAYMENTLNK_BASE_URL + "payment/invoice", data=payload)
+            r = await client.post(
+                PAYMENTLNK_BASE_URL + "payment/invoice",
+                content=form_body.encode("utf-8"),
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="paymentlnk unreachable")
 
