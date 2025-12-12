@@ -46,6 +46,11 @@ logger = logging.getLogger("uvicorn.error")
 router = APIRouter(prefix="/v2", tags=["paymentlnk"])
 
 
+from zoneinfo import ZoneInfo
+
+MSK = ZoneInfo("Europe/Moscow")
+
+
 # ========= Утилиты =========
 
 def _eq(a: str, b: str) -> bool:
@@ -134,12 +139,11 @@ def _plnk_invoice_signature(
     backURL: Optional[str],
     account: str,
 ) -> str:
-    # Нормализация пустых строк -> None
     def _n(s: Optional[str]) -> Optional[str]:
         if s is None:
             return None
         s = str(s).strip()
-        return s if s != "" else None
+        return s if s else None
 
     validity = _n(validity)
     first_name = _n(first_name)
@@ -157,44 +161,31 @@ def _plnk_invoice_signature(
 
     backURL = _n(backURL)
 
-    # Базовый порядок по саппорту:
-    # amount, amountcurr, paysys, number, description, validity, first_name, last_name, middle_name,
-    # cf1, cf2, cf3, email, notify_email, phone, notify_phone, backURL, account, secret1, secret2
-
     parts: list[str] = [
         amount,
         amountcurr,
         paysys,
         number,
         description,
-        validity or "",      # 👈 всегда слот
-        first_name or "",    # 👈 всегда слот
-        last_name or "",     # 👈 всегда слот
-        middle_name or "",   # 👈 всегда слот
+        validity or "",
+        first_name or "",
+        last_name or "",
+        middle_name or "",
     ]
 
-    # cf1..cf3 участвуют только если НЕ все пустые/отсутствуют
     if any([cf1, cf2, cf3]):
-        parts.append(cf1 or "")
-        parts.append(cf2 or "")
-        parts.append(cf3 or "")
+        parts += [cf1 or "", cf2 or "", cf3 or ""]
 
-    # email/phone блоки участвуют только если реально есть email/phone
     if email:
-        parts.append(email)
-        parts.append(notify_email or "")
-    if phone:
-        parts.append(phone)
-        parts.append(notify_phone or "")
+        parts += [email, notify_email or ""]
 
-    # backURL — по их правилу он просто следующий параметр
+    if phone:
+        parts += [phone, notify_phone or ""]
+
     if backURL:
         parts.append(backURL)
 
-    # account + secret1 + secret2 всегда в конце
-    parts.append(account)
-    parts.append(PLNK_SECRET1 or "")
-    parts.append(PLNK_SECRET2 or "")
+    parts += [account, PLNK_SECRET1 or "", PLNK_SECRET2 or ""]
 
     base = ":".join(parts)
 
@@ -203,7 +194,9 @@ def _plnk_invoice_signature(
     print("BASE:", base)
     print("=" * 80 + "\n")
 
-    return hashlib.md5(base.encode("utf-8")).hexdigest().upper()
+    # 👈 ВАЖНО: lowercase
+    return hashlib.md5(base.encode("utf-8")).hexdigest()
+
 
 
 
@@ -320,12 +313,14 @@ async def plnk_create_invoice(
         desc_raw = (desc_raw + "      ")[:6]
     description = quote(desc_raw, safe="")
 
+
     # validity (можешь оставить 24h как было)
+    now_msk = datetime.now(MSK).replace(microsecond=0)
     if body.validity_minutes:
-        dt = datetime.utcnow() + timedelta(minutes=body.validity_minutes)
+        dt = now_msk + timedelta(minutes=body.validity_minutes)
     else:
-        dt = datetime.utcnow() + timedelta(hours=24)
-    validity_str = dt.replace(microsecond=0).isoformat() + "+00:00"
+        dt = now_msk + timedelta(hours=24)
+    validity_str = dt.isoformat()
 
     # FIO (last/middle не шлём в payload, но в подпись они попадут пустыми)
     first_name = body.first_name or "Client"
