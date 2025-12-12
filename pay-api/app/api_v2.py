@@ -51,6 +51,99 @@ from zoneinfo import ZoneInfo
 MSK = ZoneInfo("Europe/Moscow")
 
 
+# ========= SUPER-LOG HELPERS (железобетон для саппорта) =========
+import base64
+from urllib.parse import urlencode
+
+
+def _fp(v: Optional[str]) -> str:
+    """Fingerprint without leaking secrets."""
+    if not v:
+        return ""
+    return hashlib.sha256(v.encode("utf-8")).hexdigest()[:12]
+
+
+def _safe_env_dump() -> dict:
+    """Everything useful for support, without leaking secrets."""
+    return {
+        "PAYMENTLNK_BASE_URL": PAYMENTLNK_BASE_URL,
+        "PLNK_ACCOUNT": PLNK_ACCOUNT,
+        "PLNK_PAYSYS": PLNK_PAYSYS,
+        "PLNK_AMOUNTCURR": PLNK_AMOUNTCURR,
+        "PLNK_BACKURL": PLNK_BACKURL,
+        "PLNK_HASH_ALG": PLNK_HASH_ALG,
+        "PAY_LINK_TTL_HOURS": PAY_LINK_TTL_HOURS,
+        "IDEMP_TTL_SEC": IDEMP_TTL_SEC,
+        "RABBIT_URL": RABBIT_URL,
+        "REDIS_URL": REDIS_URL,
+        "PLNK_SECRET1_fp": _fp(PLNK_SECRET1),
+        "PLNK_SECRET2_fp": _fp(PLNK_SECRET2),
+        "INTERNAL_TOKEN_fp": _fp(INTERNAL_TOKEN),
+    }
+
+
+def plnk_log_env_once(tag: str = "PLNK ENV"):
+    try:
+        logger.info("%s: %s", tag, json.dumps(_safe_env_dump(), ensure_ascii=False))
+    except Exception as e:
+        logger.warning("PLNK env dump failed: %s", e)
+
+
+def _bytes_meta(b: bytes) -> dict:
+    return {
+        "len": len(b),
+        "sha256": hashlib.sha256(b).hexdigest(),
+        "b64": base64.b64encode(b).decode("ascii"),
+    }
+
+
+def plnk_log_http_request_dump(
+    *,
+    label: str,
+    url: str,
+    method: str,
+    headers: dict,
+    body_bytes: bytes,
+    body_text: Optional[str] = None,
+):
+    try:
+        logger.info("=" * 80)
+        logger.info("%s | REQUEST", label)
+        logger.info("URL: %s", url)
+        logger.info("METHOD: %s", method)
+        logger.info("HEADERS: %s", headers)
+        meta = _bytes_meta(body_bytes)
+        logger.info("BODY_META: %s", meta)
+        if body_text is not None:
+            logger.info("BODY_TEXT:\n%s", body_text)
+        logger.info("=" * 80)
+    except Exception as e:
+        logger.warning("PLNK request dump failed: %s", e)
+
+
+def plnk_log_http_response_dump(
+    *,
+    label: str,
+    status_code: int,
+    headers: dict,
+    text: str,
+    elapsed_ms: float,
+    req_headers: Optional[dict] = None,
+):
+    try:
+        logger.info("=" * 80)
+        logger.info("%s | RESPONSE", label)
+        logger.info("STATUS: %s", status_code)
+        logger.info("ELAPSED_MS: %.2f", elapsed_ms)
+        if req_headers is not None:
+            logger.info("SENT_HEADERS: %s", req_headers)
+        logger.info("RESP_HEADERS: %s", headers)
+        logger.info("RESP_TEXT:\n%s", text)
+        logger.info("=" * 80)
+    except Exception as e:
+        logger.warning("PLNK response dump failed: %s", e)
+
+
 # ========= Утилиты =========
 
 def _eq(a: str, b: str) -> bool:
@@ -496,6 +589,9 @@ async def plnk_create_invoice(
     if not PLNK_ACCOUNT or not PLNK_SECRET1 or not PLNK_SECRET2:
         raise HTTPException(500, detail="PLNK_* secrets not configured")
 
+    # железобетон: env fingerprint (без секретов)
+    plnk_log_env_once("PLNK ENV (create_invoice)")
+
     if x_idempotency_key:
         cached = await idem_get(x_idempotency_key)
         if cached:
@@ -563,15 +659,51 @@ async def plnk_create_invoice(
 
     logger.info("PLNK 4.12 wire: %s", form_body)
 
+    url = PAYMENTLNK_BASE_URL + "payment/invoice"
+    req_headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+    # железобетон: точные байты тела + sha256 + base64
+    body_bytes = form_body.encode("utf-8")
+    plnk_log_http_request_dump(
+        label="PLNK 4.12",
+        url=url,
+        method="POST",
+        headers=req_headers,
+        body_bytes=body_bytes,
+        body_text=form_body,  # exact string too
+    )
+
+    t0 = time.perf_counter()
+
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            r = await client.post(
-                PAYMENTLNK_BASE_URL + "payment/invoice",
-                content=form_body.encode("utf-8"),
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            # build_request -> даёт exact headers/body как реально уйдёт
+            req = client.build_request(
+                "POST",
+                url,
+                content=body_bytes,
+                headers=req_headers,
             )
+            r = await client.send(req)
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="paymentlnk unreachable")
+
+    elapsed_ms = (time.perf_counter() - t0) * 1000.0
+
+    # железобетон: response status+headers+raw text + sent headers
+    try:
+        sent_headers = dict(r.request.headers) if getattr(r, "request", None) else None
+    except Exception:
+        sent_headers = None
+
+    plnk_log_http_response_dump(
+        label="PLNK 4.12",
+        status_code=r.status_code,
+        headers=dict(r.headers),
+        text=r.text,
+        elapsed_ms=elapsed_ms,
+        req_headers=sent_headers,
+    )
 
     try:
         data = r.json()
@@ -746,6 +878,8 @@ async def plnk_create_start_payment(
     if not PLNK_ACCOUNT or not PLNK_SECRET1 or not PLNK_SECRET2:
         raise HTTPException(status_code=500, detail="PLNK_* secrets not configured")
 
+    plnk_log_env_once("PLNK ENV (create_start_payment)")
+
     number = body.payment_id or f"plnk-{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
     amount = f"{body.amount:.2f}"
     amountcurr = PLNK_AMOUNTCURR.upper()
@@ -793,18 +927,51 @@ async def plnk_create_start_payment(
         "Accept-Language": request.headers.get("accept-language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"),
     }
 
+    url = PAYMENTLNK_BASE_URL + "payment/start"
+
+    # Железобетон: покажем и dict, и exact bytes которые реально уйдут (build_request)
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            r = await client.post(
-                PAYMENTLNK_BASE_URL + "payment/start",
+            req = client.build_request(
+                "POST",
+                url,
                 data=payload,
                 headers=headers,
             )
+            body_bytes = req.content or b""
+            plnk_log_http_request_dump(
+                label="PLNK 4.1.1",
+                url=url,
+                method="POST",
+                headers=dict(req.headers),
+                body_bytes=body_bytes,
+                body_text=None,  # тут лучше не дублировать, bytes уже exact
+            )
+
+            t0 = time.perf_counter()
+            r = await client.send(req)
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+
     except httpx.RequestError as e:
         logger.error("PLNK start request error: %s", e)
         raise HTTPException(status_code=502, detail="paymentlnk unreachable")
 
     pay_url = r.headers.get("Location") or r.headers.get("location")
+
+    # Железобетон: response
+    try:
+        sent_headers = dict(r.request.headers) if getattr(r, "request", None) else None
+    except Exception:
+        sent_headers = None
+
+    plnk_log_http_response_dump(
+        label="PLNK 4.1.1",
+        status_code=r.status_code,
+        headers=dict(r.headers),
+        text=r.text,
+        elapsed_ms=elapsed_ms,
+        req_headers=sent_headers,
+    )
 
     if not pay_url:
         text = r.text or ""
