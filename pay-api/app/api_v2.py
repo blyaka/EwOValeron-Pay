@@ -292,152 +292,89 @@ async def plnk_create_invoice(
     if not PLNK_ACCOUNT or not PLNK_SECRET1 or not PLNK_SECRET2:
         raise HTTPException(500, detail="PLNK_* secrets not configured")
 
-    if x_idempotency_key:
-        cached = await idem_get(x_idempotency_key)
-        if cached:
-            logger.info(
-                "PLNK Idempotent HIT key=%s payment_id=%s",
-                x_idempotency_key,
-                cached.get("payment_id"),
-            )
-            return cached
-
     number = body.payment_id or f"plnk-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
     amount_str = f"{body.amount:.2f}"
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    # description: минимум 6 символов и URL-encoded (как они сказали)
-    desc_raw = body.description or f"Payment {number} {amount_str} {amountcurr}"
+    # description — минимум 6 символов, URL-encoded
+    desc_raw = body.description or f"Order {number}"
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + "      ")[:6]
     description = quote(desc_raw, safe="")
 
+    # validity (+03:00)
+    now = datetime.now(tz=ZoneInfo("Europe/Moscow")).replace(microsecond=0)
+    validity = (now + timedelta(hours=24)).isoformat()
 
-    # validity (можешь оставить 24h как было)
-    now_msk = datetime.now(MSK).replace(microsecond=0)
-    if body.validity_minutes:
-        dt = now_msk + timedelta(minutes=body.validity_minutes)
-    else:
-        dt = now_msk + timedelta(hours=24)
-    validity_str = dt.isoformat()
+    # FIO
+    first_name = "Client"
 
-    # FIO (last/middle не шлём в payload, но в подпись они попадут пустыми)
-    first_name = body.first_name or "Client"
-    last_name = None
-    middle_name = None
-
-    # email/phone можно НЕ передавать вообще
-    email = (body.email or "").strip() or None
-    phone = (body.phone or "").strip() or None
-    notify_email = "1" if email else None
-    notify_phone = "1" if phone else None
-
-    back_url = (PLNK_BACKURL or "").strip() or None
-
-    # ✅ ВАЖНО: userid должен быть в cf1 одной строкой "userid:<значение>"
-    # если хочешь совсем рандом — делаем uuid
+    # 🔥 userid СТРОГО В cf1
     user_id = uuid.uuid4().hex
     cf1 = f"userid:{user_id}"
-    cf2 = None
-    cf3 = None
 
-    sig = _plnk_invoice_signature(
+    # backURL — БЕЗ СЛЭША
+    back_url = "https://evpayservice.com"
+
+    signature = _plnk_invoice_signature(
         amount=amount_str,
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
-        description=description,     # URL-encoded
-        validity=validity_str,
+        description=description,
+        validity=validity,
         first_name=first_name,
-        last_name=last_name,
-        middle_name=middle_name,
+        last_name=None,
+        middle_name=None,
         cf1=cf1,
-        cf2=cf2,
-        cf3=cf3,
-        email=email,
-        notify_email=notify_email,
-        phone=phone,
-        notify_phone=notify_phone,
+        cf2=None,
+        cf3=None,
+        email=None,            # ⛔ НЕ ПЕРЕДАЁМ
+        notify_email=None,
+        phone=None,
+        notify_phone=None,
         backURL=back_url,
         account=PLNK_ACCOUNT,
     )
 
-    payload: Dict[str, Any] = {
+    payload = {
         "amount": amount_str,
         "amountcurr": amountcurr,
         "paysys": paysys,
         "number": number,
-        "description": description,   # URL-encoded
+        "description": description,
         "account": PLNK_ACCOUNT,
-        "signature": sig,
-        "validity": validity_str,
+        "signature": signature,
+        "validity": validity,
         "first_name": first_name,
-        "cf1": cf1,                   # 👈 userid здесь
+        "cf1": cf1,
+        "backURL": back_url,
     }
 
-    if email:
-        payload["email"] = email
-        payload["notify_email"] = notify_email
+    print("==== PLNK 4.12 PAYLOAD ====")
+    print(json.dumps(payload, ensure_ascii=False))
+    print("===========================")
 
-    if phone:
-        payload["phone"] = phone
-        payload["notify_phone"] = notify_phone
-
-    if back_url:
-        payload["backURL"] = back_url
-
-    logger.info("PLNK 4.12 payload=%s", payload)
-
-    print("==== PLNK 4.12 OUTGOING PAYLOAD ====")
-    try:
-        print(json.dumps(payload, ensure_ascii=False))
-    except Exception:
-        print(payload)
-    print("====================================")
-
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            r = await client.post(
-                PAYMENTLNK_BASE_URL + "payment/invoice",
-                data=payload,
-            )
-    except httpx.RequestError as e:
-        logger.error("PLNK request error: %s", e)
-        raise HTTPException(status_code=502, detail="paymentlnk unreachable")
-
-    try:
-        data = r.json()
-    except Exception:
-        logger.error("PLNK bad response: code=%s body=%s", r.status_code, r.text[:500])
-        raise HTTPException(502, detail="paymentlnk invalid response")
-
-    status_raw = str(data.get("status") or "").lower()
-    if status_raw != "wait":
-        logger.error("PLNK invoice error: %s", data)
-        raise HTTPException(
-            status_code=502,
-            detail=f"paymentlnk error: {data.get('errorcode')} {data.get('errortext')}",
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        r = await client.post(
+            PAYMENTLNK_BASE_URL + "payment/invoice",
+            data=payload,
         )
 
-    pay_url = data.get("payURL")
-    trans_id = str(data.get("transID") or "")
+    data = r.json()
+    if str(data.get("status")).lower() != "wait":
+        raise HTTPException(
+            502,
+            f"paymentlnk error {data.get('errorcode')}: {data.get('errortext')}",
+        )
 
-    if not pay_url:
-        logger.error("PLNK no payURL: %s", data)
-        raise HTTPException(502, detail="paymentlnk response without payURL")
-
-    resp = {
-        "pay_url": pay_url,
+    return {
+        "pay_url": data["payURL"],
         "payment_id": number,
-        "trans_id": trans_id,
+        "trans_id": data.get("transID"),
         "provider": "paymentlnk",
     }
-
-    if x_idempotency_key:
-        await idem_set(x_idempotency_key, resp)
-
-    return resp
 
 
 
