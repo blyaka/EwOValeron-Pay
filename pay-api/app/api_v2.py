@@ -210,6 +210,76 @@ def _plnk_invoice_signature(
 
 
 
+def _plnk_invoice_signature_412(
+    *,
+    amount: str,
+    amountcurr: str,
+    paysys: str,
+    number: str,
+    description_enc: str,   # уже URL-encoded
+    validity: Optional[str],
+    first_name: Optional[str],
+    last_name: Optional[str],
+    middle_name: Optional[str],
+    cf1: Optional[str],
+    cf2: Optional[str],
+    cf3: Optional[str],
+    email: Optional[str],
+    notify_email: Optional[str],
+    phone: Optional[str],
+    notify_phone: Optional[str],
+    backURL: Optional[str],
+    account: str,
+) -> str:
+    # строго по их правилам
+    def nz(s: Optional[str]) -> Optional[str]:
+        if s is None:
+            return None
+        s = str(s)
+        return s if s != "" else None
+
+    validity = nz(validity)
+    first_name = first_name if first_name is not None else ""
+    last_name = last_name if last_name is not None else ""
+    middle_name = middle_name if middle_name is not None else ""
+
+    cf1 = nz(cf1); cf2 = nz(cf2); cf3 = nz(cf3)
+    email = nz(email); notify_email = nz(notify_email)
+    phone = nz(phone); notify_phone = nz(notify_phone)
+    backURL = nz(backURL)
+
+    parts: list[str] = [
+        amount,
+        amountcurr,
+        paysys,
+        number,
+        description_enc,
+        validity or "",
+        first_name,
+        last_name,
+        middle_name,
+    ]
+
+    if any([cf1, cf2, cf3]):
+        parts += [cf1 or "", cf2 or "", cf3 or ""]
+
+    if email:
+        parts += [email, notify_email or ""]
+
+    if phone:
+        parts += [phone, notify_phone or ""]
+
+    if backURL:
+        parts.append(backURL)
+
+    parts += [account, PLNK_SECRET1 or "", PLNK_SECRET2 or ""]
+    base = ":".join(parts)
+
+    logger.info("PLNK 4.12 base: %s", base)
+    return hashlib.md5(base.encode("utf-8")).hexdigest()
+
+
+
 def _plnk_start_signature(
     *,
     amount: str,
@@ -289,6 +359,131 @@ class PlnkInternalCreateLink(BaseModel):
 
 
 # ========= 1) Низкоуровневый invoice (4.12) =========
+# @router.post("/create_invoice")
+# async def plnk_create_invoice(
+#     body: PlnkInvoiceCreate,
+#     request: Request,
+#     x_internal_token: Optional[str] = Header(None),
+#     x_idempotency_key: Optional[str] = Header(None),
+# ):
+#     if INTERNAL_TOKEN and x_internal_token != INTERNAL_TOKEN:
+#         raise HTTPException(status_code=401, detail="Unauthorized")
+
+#     if not PLNK_ACCOUNT or not PLNK_SECRET1 or not PLNK_SECRET2:
+#         raise HTTPException(500, detail="PLNK_* secrets not configured")
+
+#     if x_idempotency_key:
+#         cached = await idem_get(x_idempotency_key)
+#         if cached:
+#             return cached
+
+#     number = body.payment_id or f"plnk-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
+#     amount_str = f"{body.amount:.2f}"
+#     amountcurr = PLNK_AMOUNTCURR.upper()
+#     paysys = PLNK_PAYSYS.upper()
+
+#     # description: минимум 6 символов, и ВНУТРИ значения должен быть URL-encoded текст
+#     desc_raw = (body.description or f"Order {number}").strip()
+#     if len(desc_raw) < 6:
+#         desc_raw = (desc_raw + "      ")[:6]
+#     desc_inner = quote(desc_raw, safe="")  # типа Order%20JIG-...
+
+#     now = datetime.now(MSK).replace(microsecond=0)
+#     dt = now + (timedelta(minutes=body.validity_minutes) if body.validity_minutes else timedelta(hours=24))
+#     validity_str = dt.isoformat()
+
+#     # cf1 как они просили: userid:<id>
+#     user_id = uuid.uuid4().hex
+#     cf1 = f"userid:{user_id}"
+
+#     back_url = (PLNK_BACKURL or "https://evpayservice.com").strip().rstrip("/")
+
+#     # ФИО в payload не шлём, но слоты в подписи должны быть
+#     sig = _plnk_invoice_signature(
+#         amount=amount_str,
+#         amountcurr=amountcurr,
+#         paysys=paysys,
+#         number=number,
+#         description=desc_inner,     # ВАЖНО: в подписи именно inner-encoded
+#         validity=validity_str,
+#         first_name=None,
+#         last_name=None,
+#         middle_name=None,
+#         cf1=cf1,
+#         cf2=None,
+#         cf3=None,
+#         email=None,
+#         notify_email=None,
+#         phone=None,
+#         notify_phone=None,
+#         backURL=back_url,
+#         account=PLNK_ACCOUNT,
+#     )
+
+#     payload: Dict[str, Any] = {
+#         "amount": amount_str,
+#         "amountcurr": amountcurr,
+#         "paysys": paysys,
+#         "number": number,
+#         "description": desc_inner,   # ВАЖНО: в payload тоже inner-encoded
+#         "account": PLNK_ACCOUNT,
+#         "signature": sig,
+#         "backURL": back_url,
+#         "validity": validity_str,
+#         "cf1": cf1,
+#     }
+
+#     print("==== PLNK 4.12 PAYLOAD (logical) ====")
+#     print(json.dumps(payload, ensure_ascii=False))
+#     print("=====================================")
+
+#     # ВАЖНО: формируем form-body вручную, чтобы гарантировать,
+#     # что '%' останется как '%25' на проводе, и у провайдера после 1 декода будет '%'
+#     form_body = "&".join(
+#         f"{quote(str(k), safe='')}={quote(str(v), safe='')}"
+#         for k, v in payload.items()
+#         if v is not None
+#     )
+
+#     print("==== PLNK 4.12 BODY (wire) ====")
+#     print(form_body)
+#     print("================================")
+
+#     try:
+#         async with httpx.AsyncClient(timeout=20.0) as client:
+#             r = await client.post(
+#                 PAYMENTLNK_BASE_URL + "payment/invoice",
+#                 content=form_body.encode("utf-8"),
+#                 headers={"Content-Type": "application/x-www-form-urlencoded"},
+#             )
+#     except httpx.RequestError:
+#         raise HTTPException(status_code=502, detail="paymentlnk unreachable")
+
+#     try:
+#         data = r.json()
+#     except Exception:
+#         raise HTTPException(status_code=502, detail=f"paymentlnk invalid response: {r.text[:500]}")
+
+#     if str(data.get("status") or "").lower() != "wait":
+#         raise HTTPException(
+#             status_code=502,
+#             detail=f"paymentlnk error: {data.get('errorcode')} {data.get('errortext')}",
+#         )
+
+#     resp = {
+#         "pay_url": data.get("payURL"),
+#         "payment_id": number,
+#         "trans_id": str(data.get("transID") or ""),
+#         "provider": "paymentlnk",
+#     }
+
+#     if x_idempotency_key:
+#         await idem_set(x_idempotency_key, resp)
+
+#     return resp
+
+
+
 @router.post("/create_invoice")
 async def plnk_create_invoice(
     body: PlnkInvoiceCreate,
@@ -298,7 +493,6 @@ async def plnk_create_invoice(
 ):
     if INTERNAL_TOKEN and x_internal_token != INTERNAL_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
-
     if not PLNK_ACCOUNT or not PLNK_SECRET1 or not PLNK_SECRET2:
         raise HTTPException(500, detail="PLNK_* secrets not configured")
 
@@ -312,31 +506,31 @@ async def plnk_create_invoice(
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    # description: минимум 6 символов, и ВНУТРИ значения должен быть URL-encoded текст
     desc_raw = (body.description or f"Order {number}").strip()
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + "      ")[:6]
-    desc_inner = quote(desc_raw, safe="")  # типа Order%20JIG-...
+    description_enc = quote(desc_raw, safe="")  # URL-encoded как требует саппорт
+
+    first_name = (body.first_name or "Client").strip()
+
+    # cf1 строго как они сказали
+    cf1 = body.cf1.strip() if (body.cf1 and body.cf1.strip()) else f"userid:{uuid.uuid4().hex}"
 
     now = datetime.now(MSK).replace(microsecond=0)
     dt = now + (timedelta(minutes=body.validity_minutes) if body.validity_minutes else timedelta(hours=24))
     validity_str = dt.isoformat()
 
-    # cf1 как они просили: userid:<id>
-    user_id = uuid.uuid4().hex
-    cf1 = f"userid:{user_id}"
+    back_url = (PLNK_BACKURL or "https://evpayservice.com/").strip()
+    # IMPORTANT: пока НЕ rstrip("/") — отправим ровно как в кабинете/ENV, чтоб не было канонизации
 
-    back_url = (PLNK_BACKURL or "https://evpayservice.com").strip().rstrip("/")
-
-    # ФИО в payload не шлём, но слоты в подписи должны быть
-    sig = _plnk_invoice_signature(
+    sig = _plnk_invoice_signature_412(
         amount=amount_str,
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
-        description=desc_inner,     # ВАЖНО: в подписи именно inner-encoded
+        description_enc=description_enc,
         validity=validity_str,
-        first_name=None,
+        first_name=first_name,
         last_name=None,
         middle_name=None,
         cf1=cf1,
@@ -350,34 +544,24 @@ async def plnk_create_invoice(
         account=PLNK_ACCOUNT,
     )
 
-    payload: Dict[str, Any] = {
-        "amount": amount_str,
-        "amountcurr": amountcurr,
-        "paysys": paysys,
-        "number": number,
-        "description": desc_inner,   # ВАЖНО: в payload тоже inner-encoded
-        "account": PLNK_ACCOUNT,
-        "signature": sig,
-        "backURL": back_url,
-        "validity": validity_str,
-        "cf1": cf1,
-    }
+    # ВАЖНО: wire-body как в их примере (фиксированный порядок)
+    wire_pairs: list[tuple[str, str]] = [
+        ("amount", amount_str),
+        ("amountcurr", amountcurr),
+        ("paysys", paysys),
+        ("number", number),
+        ("description", description_enc),
+        ("validity", validity_str),
+        ("first_name", first_name),
+        ("account", PLNK_ACCOUNT),
+        ("cf1", cf1),
+        ("backURL", back_url),
+        ("signature", sig),
+    ]
 
-    print("==== PLNK 4.12 PAYLOAD (logical) ====")
-    print(json.dumps(payload, ensure_ascii=False))
-    print("=====================================")
+    form_body = "&".join(f"{quote(k, safe='')}={quote(v, safe='')}" for k, v in wire_pairs)
 
-    # ВАЖНО: формируем form-body вручную, чтобы гарантировать,
-    # что '%' останется как '%25' на проводе, и у провайдера после 1 декода будет '%'
-    form_body = "&".join(
-        f"{quote(str(k), safe='')}={quote(str(v), safe='')}"
-        for k, v in payload.items()
-        if v is not None
-    )
-
-    print("==== PLNK 4.12 BODY (wire) ====")
-    print(form_body)
-    print("================================")
+    logger.info("PLNK 4.12 wire: %s", form_body)
 
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
@@ -406,12 +590,9 @@ async def plnk_create_invoice(
         "trans_id": str(data.get("transID") or ""),
         "provider": "paymentlnk",
     }
-
     if x_idempotency_key:
         await idem_set(x_idempotency_key, resp)
-
     return resp
-
 
 
 
