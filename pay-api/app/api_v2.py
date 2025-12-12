@@ -131,78 +131,67 @@ def _plnk_invoice_signature(
     notify_email: Optional[str],
     phone: Optional[str],
     notify_phone: Optional[str],
-    paytoken: Optional[str],
     backURL: Optional[str],
     account: str,
 ) -> str:
-    """
-    Подпись для 4.12 по правилам саппорта:
+    # Нормализация пустых строк -> None
+    def _n(s: Optional[str]) -> Optional[str]:
+        if s is None:
+            return None
+        s = str(s).strip()
+        return s if s != "" else None
 
-    base = amount:amountcurr:paysys:number:description:validity:
-            first_name:last_name:middle_name:
-            cf1:cf2:cf3:
-            email:notify_email:
-            phone:notify_phone:
-            paytoken:
-            backURL:
-            account:secret1:secret2
+    validity = _n(validity)
+    first_name = _n(first_name)
+    last_name = _n(last_name)
+    middle_name = _n(middle_name)
 
-    - last_name/middle_name — только если реально есть
-    - cf1/cf2/cf3 — блоком, если хотя бы один непустой;
-      cf2 и cf3 могут быть пустыми строками
-    - email/notify_email — блоком только если есть email
-    - phone/notify_phone — блоком только если есть phone
-    - paytoken/backURL — только если непустые
-    - в конце ВСЕГДА account, secret1, secret2
-    - АЛГОРИТМ: ЧИСТЫЙ MD5(base), без HMAC, без SHA256
-    """
+    cf1 = _n(cf1)
+    cf2 = _n(cf2)
+    cf3 = _n(cf3)
 
-    parts: list[str] = []
+    email = _n(email)
+    notify_email = _n(notify_email)
+    phone = _n(phone)
+    notify_phone = _n(notify_phone)
 
-    # базовые поля — всегда
-    parts.append(amount)
-    parts.append(amountcurr)
-    parts.append(paysys)
-    parts.append(number)
-    parts.append(description)
+    backURL = _n(backURL)
 
-    # validity
-    if validity:
-        parts.append(validity)
+    # Базовый порядок по саппорту:
+    # amount, amountcurr, paysys, number, description, validity, first_name, last_name, middle_name,
+    # cf1, cf2, cf3, email, notify_email, phone, notify_phone, backURL, account, secret1, secret2
 
-    # FIO
-    if first_name:
-        parts.append(first_name)
-    if last_name:
-        parts.append(last_name)
-    if middle_name:
-        parts.append(middle_name)
+    parts: list[str] = [
+        amount,
+        amountcurr,
+        paysys,
+        number,
+        description,
+        validity or "",      # 👈 всегда слот
+        first_name or "",    # 👈 всегда слот
+        last_name or "",     # 👈 всегда слот
+        middle_name or "",   # 👈 всегда слот
+    ]
 
-    # cf1..cf3 — блоком, если хоть один указан
+    # cf1..cf3 участвуют только если НЕ все пустые/отсутствуют
     if any([cf1, cf2, cf3]):
         parts.append(cf1 or "")
         parts.append(cf2 or "")
         parts.append(cf3 or "")
 
-    # email / notify_email
+    # email/phone блоки участвуют только если реально есть email/phone
     if email:
         parts.append(email)
         parts.append(notify_email or "")
-
-    # phone / notify_phone
     if phone:
         parts.append(phone)
         parts.append(notify_phone or "")
 
-    # paytoken
-    if paytoken:
-        parts.append(paytoken)
-
-    # backURL
+    # backURL — по их правилу он просто следующий параметр
     if backURL:
         parts.append(backURL)
 
-    # account + секреты
+    # account + secret1 + secret2 всегда в конце
     parts.append(account)
     parts.append(PLNK_SECRET1 or "")
     parts.append(PLNK_SECRET2 or "")
@@ -212,17 +201,9 @@ def _plnk_invoice_signature(
     print("\n" + "=" * 80)
     print("PLNK 4.12 SIGNATURE DEBUG")
     print("BASE:", base)
-    print("HASH ALG   : md5  (force)")
     print("=" * 80 + "\n")
 
-    # ВАЖНО: всегда MD5, без HMAC
-    sig = hashlib.md5(base.encode("utf-8")).hexdigest()
-
-    print("PLNK 4.12 SIGNATURE HEX:", sig.upper())
-    print("=" * 80 + "\n")
-
-    return sig.upper()
-
+    return hashlib.md5(base.encode("utf-8")).hexdigest().upper()
 
 
 
@@ -333,52 +314,56 @@ async def plnk_create_invoice(
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    # описание минимум 6 символов, затем кодируем в URL-encoded строку (как требует дока)
+    # description: минимум 6 символов и URL-encoded (как они сказали)
     desc_raw = body.description or f"Payment {number} {amount_str} {amountcurr}"
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + "      ")[:6]
-    description = quote(desc_raw, safe="")  # 👈 теперь всегда URL-encoded
+    description = quote(desc_raw, safe="")
 
-    # validity
+    # validity (можешь оставить 24h как было)
     if body.validity_minutes:
         dt = datetime.utcnow() + timedelta(minutes=body.validity_minutes)
     else:
         dt = datetime.utcnow() + timedelta(hours=24)
     validity_str = dt.replace(microsecond=0).isoformat() + "+00:00"
 
-    # FIO
+    # FIO (last/middle не шлём в payload, но в подпись они попадут пустыми)
     first_name = body.first_name or "Client"
     last_name = None
     middle_name = None
 
-    email = body.email or None
-    phone = body.phone or None   # сюда уже прилетает "7977..." без плюса
-
+    # email/phone можно НЕ передавать вообще
+    email = (body.email or "").strip() or None
+    phone = (body.phone or "").strip() or None
     notify_email = "1" if email else None
     notify_phone = "1" if phone else None
-    paytoken = None
 
-    back_url = PLNK_BACKURL or None
+    back_url = (PLNK_BACKURL or "").strip() or None
 
-    # 🔐 description в подпись передаём в том же виде, что и в payload (URL-encoded)
+    # ✅ ВАЖНО: userid должен быть в cf1 одной строкой "userid:<значение>"
+    # если хочешь совсем рандом — делаем uuid
+    user_id = uuid.uuid4().hex
+    cf1 = f"userid:{user_id}"
+    cf2 = None
+    cf3 = None
+
     sig = _plnk_invoice_signature(
         amount=amount_str,
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
-        description=description,
+        description=description,     # URL-encoded
         validity=validity_str,
         first_name=first_name,
         last_name=last_name,
         middle_name=middle_name,
-        cf1=body.cf1,
-        cf2=None,
-        cf3=None,
+        cf1=cf1,
+        cf2=cf2,
+        cf3=cf3,
         email=email,
         notify_email=notify_email,
         phone=phone,
         notify_phone=notify_phone,
-        paytoken=paytoken,
         backURL=back_url,
         account=PLNK_ACCOUNT,
     )
@@ -388,19 +373,13 @@ async def plnk_create_invoice(
         "amountcurr": amountcurr,
         "paysys": paysys,
         "number": number,
-        "description": description,   # 👈 URL-encoded
+        "description": description,   # URL-encoded
         "account": PLNK_ACCOUNT,
         "signature": sig,
+        "validity": validity_str,
+        "first_name": first_name,
+        "cf1": cf1,                   # 👈 userid здесь
     }
-
-    if validity_str:
-        payload["validity"] = validity_str
-
-    if first_name:
-        payload["first_name"] = first_name
-
-    if body.cf1:
-        payload["cf1"] = body.cf1
 
     if email:
         payload["email"] = email
@@ -470,7 +449,6 @@ async def plnk_create_invoice(
 
 
 # ========= 2) Прокладочная ссылка (аналог /internal/create_link) =========
-
 @router.post("/internal/create_link")
 async def plnk_internal_create_link(
     body: PlnkInternalCreateLink,
@@ -486,10 +464,9 @@ async def plnk_internal_create_link(
     ttl_sec = ttl_min * 60
     exp_iso = (datetime.utcnow() + timedelta(seconds=ttl_sec)).isoformat() + "Z"
 
-    # 👇 вот тут подставляем заглушку, если с фронта пришла пустота
-    phone = body.phone.strip() if body.phone else None
-    if not phone:
-        phone = "79775737721"  # временная заглушка; потом поменяем на реальный номер
+    # ❌ НИКАКИХ заглушек телефона: можно не передавать phone/email вообще
+    phone = (body.phone or "").strip() or None
+    email = (body.email or "").strip() or None
 
     if x_idempotency_key:
         cached = await idem_get(x_idempotency_key)
@@ -514,11 +491,11 @@ async def plnk_internal_create_link(
     created = await plnk_create_invoice(
         body=PlnkInvoiceCreate(
             amount=body.amount,
-            email=body.email,
-            phone=phone,  # 👈 тут уже всегда НЕ пустой
+            email=email,
+            phone=phone,
             description=body.description,
             payment_id=body.payment_id,
-            cf1=body.cf1,
+            cf1=None,  # userid мы генерим внутри create_invoice
             first_name=body.first_name,
             validity_minutes=None,
         ),
@@ -546,6 +523,8 @@ async def plnk_internal_create_link(
     if x_idempotency_key:
         await idem_set(x_idempotency_key, resp)
     return resp
+
+
 
 
 # ========= 3) Редирект по прокладочной ссылке =========
