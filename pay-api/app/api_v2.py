@@ -602,7 +602,7 @@ async def plnk_create_invoice(
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    desc_raw = (body.description or f"Order {number}").strip()
+    desc_raw = (body.description or f"Order-{number}").strip()
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + "      ")[:6]
     description_enc = quote(desc_raw, safe="")  # URL-encoded как требует саппорт
