@@ -173,15 +173,19 @@ def _plnk_invoice_signature(
         middle_name or "",
     ]
 
+    # ✅ cf-блок: если включили — ДОЛЖНЫ быть 3 слота, cf3 пустой строкой
     if any([cf1, cf2, cf3]):
         parts += [cf1 or "", cf2 or "", cf3 or ""]
 
+    # email/notify_email — только если email есть
     if email:
         parts += [email, notify_email or ""]
 
+    # phone/notify_phone — только если phone есть
     if phone:
         parts += [phone, notify_phone or ""]
 
+    # backURL в ваших запросах всегда есть — включаем
     if backURL:
         parts.append(backURL)
 
@@ -194,8 +198,7 @@ def _plnk_invoice_signature(
     print("BASE:", base)
     print("=" * 80 + "\n")
 
-    # 👈 ВАЖНО: lowercase
-    return hashlib.md5(base.encode("utf-8")).hexdigest()
+    return hashlib.md5(base.encode("utf-8")).hexdigest()  # lowercase
 
 
 
@@ -292,63 +295,75 @@ async def plnk_create_invoice(
     if not PLNK_ACCOUNT or not PLNK_SECRET1 or not PLNK_SECRET2:
         raise HTTPException(500, detail="PLNK_* secrets not configured")
 
+    if x_idempotency_key:
+        cached = await idem_get(x_idempotency_key)
+        if cached:
+            return cached
+
     number = body.payment_id or f"plnk-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
     amount_str = f"{body.amount:.2f}"
     amountcurr = PLNK_AMOUNTCURR.upper()
     paysys = PLNK_PAYSYS.upper()
 
-    # description — минимум 6 символов, URL-encoded
     desc_raw = body.description or f"Order {number}"
     if len(desc_raw) < 6:
         desc_raw = (desc_raw + "      ")[:6]
-    description = quote(desc_raw, safe="")
+    description = quote(desc_raw, safe="")  # URL-encoded
 
-    # validity (+03:00)
-    now = datetime.now(tz=ZoneInfo("Europe/Moscow")).replace(microsecond=0)
-    validity = (now + timedelta(hours=24)).isoformat()
+    now = datetime.now(MSK).replace(microsecond=0)
+    dt = now + (timedelta(minutes=body.validity_minutes) if body.validity_minutes else timedelta(hours=24))
+    validity_str = dt.isoformat()  # +03:00
 
-    # FIO
-    first_name = "Client"
+    first_name = body.first_name or "Client"
 
-    # 🔥 userid СТРОГО В cf1
+    # ✅ КАК В ИХ ПРИМЕРЕ: cf1="userid", cf2="<id>", cf3=""
     user_id = uuid.uuid4().hex
-    cf1 = f"userid:{user_id}"
+    cf1 = "userid"
+    cf2 = user_id
+    cf3 = ""
 
-    # backURL — БЕЗ СЛЭША
-    back_url = "https://evpayservice.com"
+    # ✅ email/phone не шлём вообще (чтобы не было их нормализаций)
+    email = None
+    phone = None
+    notify_email = None
+    notify_phone = None
 
-    signature = _plnk_invoice_signature(
+    back_url = (PLNK_BACKURL or "https://evpayservice.com").strip().rstrip("/")
+
+    sig = _plnk_invoice_signature(
         amount=amount_str,
         amountcurr=amountcurr,
         paysys=paysys,
         number=number,
         description=description,
-        validity=validity,
+        validity=validity_str,
         first_name=first_name,
         last_name=None,
         middle_name=None,
         cf1=cf1,
-        cf2=None,
-        cf3=None,
-        email=None,            # ⛔ НЕ ПЕРЕДАЁМ
-        notify_email=None,
-        phone=None,
-        notify_phone=None,
+        cf2=cf2,
+        cf3=cf3,
+        email=email,
+        notify_email=notify_email,
+        phone=phone,
+        notify_phone=notify_phone,
         backURL=back_url,
         account=PLNK_ACCOUNT,
     )
 
-    payload = {
+    payload: Dict[str, Any] = {
         "amount": amount_str,
         "amountcurr": amountcurr,
         "paysys": paysys,
         "number": number,
         "description": description,
         "account": PLNK_ACCOUNT,
-        "signature": signature,
-        "validity": validity,
+        "signature": sig,
+        "validity": validity_str,
         "first_name": first_name,
         "cf1": cf1,
+        "cf2": cf2,
+        "cf3": cf3,
         "backURL": back_url,
     }
 
@@ -356,25 +371,34 @@ async def plnk_create_invoice(
     print(json.dumps(payload, ensure_ascii=False))
     print("===========================")
 
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        r = await client.post(
-            PAYMENTLNK_BASE_URL + "payment/invoice",
-            data=payload,
-        )
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.post(PAYMENTLNK_BASE_URL + "payment/invoice", data=payload)
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="paymentlnk unreachable")
 
-    data = r.json()
-    if str(data.get("status")).lower() != "wait":
+    try:
+        data = r.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail=f"paymentlnk invalid response: {r.text[:500]}")
+
+    if str(data.get("status") or "").lower() != "wait":
         raise HTTPException(
-            502,
-            f"paymentlnk error {data.get('errorcode')}: {data.get('errortext')}",
+            status_code=502,
+            detail=f"paymentlnk error: {data.get('errorcode')} {data.get('errortext')}",
         )
 
-    return {
-        "pay_url": data["payURL"],
+    resp = {
+        "pay_url": data.get("payURL"),
         "payment_id": number,
-        "trans_id": data.get("transID"),
+        "trans_id": str(data.get("transID") or ""),
         "provider": "paymentlnk",
     }
+
+    if x_idempotency_key:
+        await idem_set(x_idempotency_key, resp)
+
+    return resp
 
 
 
