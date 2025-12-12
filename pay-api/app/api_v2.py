@@ -27,7 +27,8 @@ RABBIT_URL = os.getenv("RABBIT_URL", "amqp://user:pass@rabbit:5672/")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/1")
 redis_cli = redis.from_url(REDIS_URL, decode_responses=True)
 
-PAYMENTLNK_BASE_URL = "https://start.paymentlnk.com/api/"
+PAYMENTLNK_BASE_URL = "https://start-test.paymentlnk.com/api/"
+
 
 PLNK_ACCOUNT = os.getenv("PLNK_ACCOUNT")       # 'account' из доки
 PLNK_SECRET1 = os.getenv("PLNK_SECRET1")
