@@ -821,12 +821,20 @@ async def plnk_status(request: Request):
     payload = {k: v for k, v in form.items()}
 
     status_raw = str(payload.get("status") or "").lower()
-    order_id = str(payload.get("number") or "")
-    trans_id = str(payload.get("transID") or payload.get("transid") or "")
 
-    if not order_id:
+    raw_number = str(payload.get("number") or "")  # то, что пришло от PLNK
+    if not raw_number:
         logger.warning("PLNK status without number: %s", payload)
         return PlainTextResponse("NO", status_code=400)
+
+    # Нормализуем order_id для Django:
+    # у тебя в Django order_id = "JIG-20251213-01"
+    # а сюда приходит "plnk-JIG-20251213-01"
+    order_id = raw_number
+    if order_id.startswith("plnk-"):
+        order_id = order_id[5:]  # remove "plnk-"
+
+    trans_id = str(payload.get("transID") or payload.get("transid") or "")
 
     if PLNK_ACCOUNT and str(payload.get("account") or "") != str(PLNK_ACCOUNT):
         logger.warning("PLNK status wrong account: %s", payload)
@@ -844,18 +852,27 @@ async def plnk_status(request: Request):
     event = {
         "provider": "paymentlnk",
         "schema": "invoice_status",
+
+        # ВАЖНО: это теперь совпадает с Payment.order_id в Django
         "order_id": order_id,
+
+        # ВАЖНО: сохраняем сырой идентификатор (у тебя это Payment.payment_id)
+        "payment_id": raw_number,
+
         "amount": str(payload.get("amount") or ""),
         "currency": str(payload.get("amountcurr") or ""),
         "status": norm_status,
         "intid": trans_id,
         "raw": payload,
     }
-    event["event_key"] = f"plnk:{trans_id or order_id}"
+
+    # event_key лучше завязать на trans_id, а если его нет — на raw_number (не на order_id)
+    event["event_key"] = f"plnk:{trans_id or raw_number}"
 
     logger.info("PLNK STATUS event: %s", event)
     await _publish_payment_event(event)
     return PlainTextResponse("OK")
+
 
 
 # ========= 5) 4.1.1 (create_start_payment + прокладка) =========
